@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<store>
+  <product>
+    <id>1</id>
+    <price_no_vat>125.64</price_no_vat>
+    <quantity>10</quantity>
+  </product>
+  <product>
+    <id>2</id>
+    <price_no_vat>48.50</price_no_vat>
+    <quantity>3</quantity>
+  </product>
+  <product>
+    <id>3</id>
+    <price_no_vat>19.99</price_no_vat>
+    <quantity>0</quantity>
+  </product>
+  <product>
+    <id>4</id>
+    <price_no_vat>22.00</price_no_vat>
+    <quantity>7</quantity>
+  </product>
+</store>
