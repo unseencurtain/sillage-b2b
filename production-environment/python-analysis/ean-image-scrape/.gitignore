@@ -1,0 +1,4 @@
+scraped/
+*.zip
+reports/progress.jsonl
+__pycache__/

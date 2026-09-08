@@ -1,0 +1,18 @@
+{
+  "total_beautyfort_products": 9014,
+  "products_with_barcode": 8991,
+  "products_with_image": 5855,
+  "products_no_image": 3136,
+  "image_match_rate": "65.0%",
+  "override_ean_keys": 7931,
+  "image_sources": {
+    "overrides_precomputed": 5090,
+    "ocean_xml": 765,
+    "oceanfragrances_csv": 0,
+    "shopify_direct": 0,
+    "bts_cross_vendor": 0
+  },
+  "bts_ean_matches": 2058,
+  "bun_install_path": "/home/star/Projects/perfume-store/production-environment/sillage-core/data/image_overrides.json",
+  "note": "After --install-core, run a fast/rewrite sync so WooCommerce _external_thumbnail_url updates."
+}

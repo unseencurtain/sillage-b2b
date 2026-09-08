@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas: #f4f6f8;
+  --panel: #ffffff;
+  --ink: #15202b;
+  --muted: #5b6b7c;
+  --line: #e2e8ef;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --danger: #b42318;
+  --warn: #b54708;
+  --ok: #067647;
+  --sidebar: #0f1720;
+  --sidebar-ink: #d7e0ea;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "DM Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(15, 118, 110, 0.08), transparent 55%),
+    var(--canvas);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+input,
+select,
+button,
+textarea {
+  font: inherit;
+}

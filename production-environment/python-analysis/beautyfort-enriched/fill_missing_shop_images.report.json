@@ -1,0 +1,253 @@
+{
+  "stats": {
+    "products": 20416,
+    "missing": 15785,
+    "missing_beautyfort": 4833,
+    "unresolved": 13262,
+    "no_ean": 31,
+    "already_overridden": 4600,
+    "missing_bts": 10952,
+    "filled_shopify": 253,
+    "filled_bts_shopify": 90,
+    "filled_brasty": 2207,
+    "filled_bts_brasty": 802,
+    "filled_beautyfort_brasty": 1405,
+    "filled_beautyfort_shopify": 163,
+    "filled_oceanfragrances": 63,
+    "filled_beautyfort_oceanfragrances": 56,
+    "filled_bts_oceanfragrances": 7
+  },
+  "delta_keys": 3079,
+  "merged_keys": 11043,
+  "brasty_index": 35567,
+  "ocean_index": 8220,
+  "shopify_index": 17043,
+  "still_missing_sample": [
+    {
+      "sku": "BF-B256314",
+      "vendor": "beautyfort",
+      "eans": [
+        "987654321234"
+      ],
+      "name": "Fudge Black Tint Haarfarben Schale",
+      "image_url": "https://www.beautyfort.com/pic/YnNJS0ZRVjMyQlZ0V09ZU2xTL05ScXRoTllvMURGSVE%3D"
+    },
+    {
+      "sku": "BF-J666281",
+      "vendor": "beautyfort",
+      "eans": [
+        "5013692276276"
+      ],
+      "name": "Emily In Paris Gift Set 150ml Shimmer Shower Gel + 80ml Body Butter + 100g Bath Salts",
+      "image_url": "https://www.beautyfort.com/pic/T0pEbVRJamdXWlh6Y2Y2SzN3T0JZYXRoTllvMURGSVE%3D"
+    },
+    {
+      "sku": "BF-U81850",
+      "vendor": "beautyfort",
+      "eans": [
+        "9402210"
+      ],
+      "name": "OPI Nagellack 15ml - Thank Glogg It's Friday!",
+      "image_url": "https://www.beautyfort.com/pic/ZUFRTGFHaWFiMDlmNWV1dWtTU0FRRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-P26277",
+      "vendor": "beautyfort",
+      "eans": [
+        "9402511"
+      ],
+      "name": "OPI Nagellack 15ml - Baroque But Still Shopping NLV38",
+      "image_url": "https://www.beautyfort.com/pic/YWM0V0N2Wi9LQ28ra3h1SFRNUDgvRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-K94848",
+      "vendor": "beautyfort",
+      "eans": [
+        "9404616"
+      ],
+      "name": "OPI Mustang Nagellack 15ml 50 Years of Style",
+      "image_url": "https://www.beautyfort.com/pic/MUZ0SkNVMkZVZXJYTTVWa2xsV3N3VHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-E275203",
+      "vendor": "beautyfort",
+      "eans": [
+        "9410617"
+      ],
+      "name": "OPI Nagellack 15ml - With A Nice Finn-Ish",
+      "image_url": "https://www.beautyfort.com/pic/ZUFRTGFHaWFiMC84Mkcva3ZZMEp4enNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-O54112",
+      "vendor": "beautyfort",
+      "eans": [
+        "9411111"
+      ],
+      "name": "OPI Nordic Collection Nagellack 15ml - Do You Have this Colour in Stock-holm?",
+      "image_url": "https://www.beautyfort.com/pic/ZUFRTGFHaWFiMDgra3h1SFRNUDgvRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-V551229",
+      "vendor": "beautyfort",
+      "eans": [
+        "9419317"
+      ],
+      "name": "OPI Starlight Nagellack 15ml - Is This Star Taken?",
+      "image_url": "https://www.beautyfort.com/pic/aVJUWC92QU1Uek5mNWV1dWtTU0FRRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-O54212",
+      "vendor": "beautyfort",
+      "eans": [
+        "9427015"
+      ],
+      "name": "OPI Brights Nagellack 15ml - The It Color",
+      "image_url": "https://www.beautyfort.com/pic/STYyZUQzcmplcmsra3h1SFRNUDgvRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-G644612",
+      "vendor": "beautyfort",
+      "eans": [
+        "9429110"
+      ],
+      "name": "OPI Hong Kong Collection Nagellack 15ml - Suzi Says Feng Shui",
+      "image_url": "https://www.beautyfort.com/pic/RTg3blJqeW5vNWFEZjNnWHV0cnllVHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-M053417",
+      "vendor": "beautyfort",
+      "eans": [
+        "9434510"
+      ],
+      "name": "OPI Coca Cola Nagellack 15ml - Turn The Haute Light",
+      "image_url": "https://www.beautyfort.com/pic/eUJkQXNFNmIwOFU0V2xZRGM5UHhranNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-C481016",
+      "vendor": "beautyfort",
+      "eans": [
+        "9439214"
+      ],
+      "name": "OPI Nagellack 15ml - Can't aFj\u00f6rd Not To",
+      "image_url": "https://www.beautyfort.com/pic/STYyZUQzcmplcmxVWnZqcjF2cnZzVHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-L003644",
+      "vendor": "beautyfort",
+      "eans": [
+        "9443013"
+      ],
+      "name": "OPI Infinite Shine 2 Nail Polish 15 ml - Lincoln Park After Dark",
+      "image_url": "https://www.beautyfort.com/pic/QUxQU2F4eFFZUlA4Mkcva3ZZMEp4enNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-P97230",
+      "vendor": "beautyfort",
+      "eans": [
+        "9443615"
+      ],
+      "name": "OPI Touring America Nagellack 15ml - Get In The Expresso Lane",
+      "image_url": "https://www.beautyfort.com/pic/NWlFMTNwbUpSc3pKUGtEbWlOL2ovRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-M247415",
+      "vendor": "beautyfort",
+      "eans": [
+        "9448018"
+      ],
+      "name": "OPI Nordic Collection Nagellack 15ml - Suzi Has A Swede Tooth",
+      "image_url": "https://www.beautyfort.com/pic/STYyZUQzcmplcms0V2xZRGM5UHhranNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-P268611",
+      "vendor": "beautyfort",
+      "eans": [
+        "9455018"
+      ],
+      "name": "OPI Infinite Shine Nail Polish 15ml - I Can Never Hut Up",
+      "image_url": "https://www.beautyfort.com/pic/TnUrdVVyUEVxaUE0V2xZRGM5UHhranNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-W338314",
+      "vendor": "beautyfort",
+      "eans": [
+        "9460214"
+      ],
+      "name": "OPI Euro Centrale Nagellack 15ml I Saw...U Saw...We Saw...Warsaw",
+      "image_url": "https://www.beautyfort.com/pic/VVRBUjFjSytiSGtCNVRLRWwxeXVuanNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-E715168",
+      "vendor": "beautyfort",
+      "eans": [
+        "9461912"
+      ],
+      "name": "OPI Brazil Nagellack 15ml I Just Can't Cope-Acabana",
+      "image_url": "https://www.beautyfort.com/pic/bXdOSmhmNTh1K3o4Mkcva3ZZMEp4enNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-V61929",
+      "vendor": "beautyfort",
+      "eans": [
+        "9462319"
+      ],
+      "name": "OPI San Francisco Nagellack 15ml Incognito in Sausalito",
+      "image_url": "https://www.beautyfort.com/pic/VnlnZ3NDWGg2R0lCNVRLRWwxeXVuanNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-D496108",
+      "vendor": "beautyfort",
+      "eans": [
+        "9464210"
+      ],
+      "name": "OPI San Francisco Nail Lacquer 15ml Dining Al Fresco",
+      "image_url": "https://www.beautyfort.com/pic/VnlnZ3NDWGg2R0w4Mkcva3ZZMEp4enNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-L26201",
+      "vendor": "beautyfort",
+      "eans": [
+        "9466412"
+      ],
+      "name": "OPI San Francisco Nail Lacquer 15ml Keeping Suzi at Bay",
+      "image_url": "https://www.beautyfort.com/pic/ME42R0R5TDdVaGM0V2xZRGM5UHhranNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-K64848",
+      "vendor": "beautyfort",
+      "eans": [
+        "9467712"
+      ],
+      "name": "OPI Nordic Nagellack 15ml How Great Is Your Dane?",
+      "image_url": "https://www.beautyfort.com/pic/US81M011c2NZVFRYTTVWa2xsV3N3VHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-U57856",
+      "vendor": "beautyfort",
+      "eans": [
+        "9468119"
+      ],
+      "name": "OPI Nordic Nagellack 15ml Ice-Bergers & Fries",
+      "image_url": "https://www.beautyfort.com/pic/US81M011c2NZVFJmNWV1dWtTU0FRRHNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-E315226",
+      "vendor": "beautyfort",
+      "eans": [
+        "9471812"
+      ],
+      "name": "OPI Coca Cola Nagellack 15ml A Grape Affair",
+      "image_url": "https://www.beautyfort.com/pic/US81M011c2NZVFQ4Mkcva3ZZMEp4enNEWDVYaTNFdlk%3D"
+    },
+    {
+      "sku": "BF-K74724",
+      "vendor": "beautyfort",
+      "eans": [
+        "9478514"
+      ],
+      "name": "OPI Swiss Collection Nagellack 15ml - Ski Teal We Drop",
+      "image_url": "https://www.beautyfort.com/pic/c2JDamxCL3ozbm5YTTVWa2xsV3N3VHNEWDVYaTNFdlk%3D"
+    }
+  ],
+  "still_missing_count": 13262
+}

@@ -1,0 +1,139 @@
+# Standalone wholesale-perfumes shop. Does not use unseencurtain/Sillage.
+#
+#   cp .env.example .env
+#   docker network create ecom_network && docker network create redis_network
+#   touch sillage-core/data/secrets.overlay.wholesale.env
+#   docker compose --env-file .env up -d
+#
+name: sillage-wholesale
+
+x-core: &core
+  image: ${SILLAGE_CORE_IMAGE:-unseencurtain/sillage-b2b:latest}
+  networks:
+    - ecom_network
+    - redis_network
+  restart: unless-stopped
+  depends_on:
+    wholesale-db:
+      condition: service_healthy
+    wholesale-valkey:
+      condition: service_started
+  env_file:
+    - .env
+  environment:
+    DB_HOST: wholesale-db
+    DB_PORT: "3306"
+    REDIS_URL: redis://wholesale-valkey:6379
+    SILLAGE_PROFILE: wholesale
+    SILLAGE_LOCK_PREFIX: sillage-wholesale
+    SILLAGE_DB: ${SILLAGE_DB:-sillage_wpf}
+    WORDPRESS_DB: ${WORDPRESS_DB:-earth_wpf}
+    WP_BASE_URL: ${WP_BASE_URL:-https://wholesale.mirainikki.xyz}
+    WORDPRESS_INTERNAL_URL: ${WORDPRESS_INTERNAL_URL:-http://wholesale-ecom}
+    SILLAGE_SHARED_SECRET: ${SILLAGE_SHARED_SECRET}
+    FIXTURES_DIR: /app/.feedscratch
+    LPS_MEDIA_BASE_URL: ${LPS_MEDIA_BASE_URL:-https://images.prinscosmetic.eu}
+    SILLAGE_SECRETS_FILE: /app/data/secrets.overlay.env
+    SITEMAP_DIR: /app/data/sitemaps
+  volumes:
+    - ${SILLAGE_LOGS_DIR:-./sillage-core/logs}:/app/logs
+    - ${FEEDSCRATCH_DIR:-../.feedscratch}:/app/.feedscratch
+    - ${IMAGE_OVERRIDES_FILE:-./sillage-core/data/image_overrides.wpf.json}:/app/data/image_overrides.json:ro
+    - ${SILLAGE_SECRETS_FILE:-./sillage-core/data/secrets.overlay.env}:/app/data/secrets.overlay.env
+    - ${SITEMAP_HOST_DIR:-./ecom_sites/data/sitemaps}:/app/data/sitemaps
+
+services:
+  wholesale-db:
+    container_name: wholesale-db
+    hostname: wholesale-db
+    image: ${MARIADB_IMAGE:-mariadb:latest}
+    networks:
+      - ecom_network
+    restart: always
+    ports:
+      - "${DB_BIND:-127.0.0.1}:${DB_HOST_PORT:-3308}:3306"
+    volumes:
+      - ${DATA_DIR:-./ecom_sites/data}/wholesale-db:/var/lib/mysql
+      - ${MARIADB_CNF:-./ecom_sites/config/mariadb.wholesale.cnf}:/etc/mysql/conf.d/sillage.cnf:ro
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PWD}
+      MYSQL_DATABASE: ${MYSQL_DB:-earth_wpf}
+      MYSQL_USER: ${MYSQL_USER:-lime}
+      MYSQL_PASSWORD: ${MYSQL_PWD}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  wholesale-valkey:
+    container_name: wholesale-valkey
+    hostname: wholesale-valkey
+    image: ${VALKEY_IMAGE:-valkey/valkey:8-alpine}
+    networks:
+      - redis_network
+    restart: unless-stopped
+    command: valkey-server --save "" --appendonly no
+
+  wholesale-ecom:
+    container_name: wholesale-ecom
+    hostname: wholesale-ecom
+    image: ${WORDPRESS_IMAGE:-unseencurtain/sillage-wordpress:latest}
+    networks:
+      - ecom_network
+      - redis_network
+    restart: always
+    ports:
+      - "${ECOM_BIND:-127.0.0.1}:${ECOM_PORT:-106}:80"
+    depends_on:
+      wholesale-db:
+        condition: service_healthy
+    volumes:
+      - ${DATA_DIR:-./ecom_sites/data}/wp-wholesale:/var/www/html
+      - ${PHP_INI:-./ecom_sites/config/php.ini}:/usr/local/etc/php/conf.d/conf.ini:ro
+      - ${APACHE_HIDE_CONF:-./ecom_sites/config/apache-hide-version.conf}:/etc/apache2/conf-enabled/z-hide-version.conf:ro
+    environment:
+      WORDPRESS_DB_HOST: wholesale-db
+      WORDPRESS_DB_USER: ${MYSQL_USER:-lime}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PWD}
+      WORDPRESS_DB_NAME: ${MYSQL_DB:-earth_wpf}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_REDIS_HOST', 'wholesale-valkey');
+        define('WP_REDIS_PORT', 6379);
+        define('WP_REDIS_PREFIX', 'wholesale:');
+        define('WP_REDIS_DATABASE', 0);
+        define('WP_CACHE_KEY_SALT', 'wholesale:');
+        define('SILLAGE_SHARED_SECRET', '${SILLAGE_SHARED_SECRET}');
+        define('SILLAGE_CORE_URL', 'http://wholesale-core:4000');
+        define('SILLAGE_DASHBOARD_URL', 'https://${DASH_DOMAIN:-sillage-wholesale.mirainikki.xyz}');
+        define('SILLAGE_DB', '${SILLAGE_DB:-sillage_wpf}');
+        define('SILLAGE_STOREFRONT_PROFILE', 'wholesale');
+        define('DISABLE_WP_CRON', true);
+
+  wholesale-core:
+    <<: *core
+    container_name: wholesale-core
+    hostname: wholesale-core
+    command: ["bun", "run", "src/server/index.ts"]
+    ports:
+      - "${SILLAGE_BIND:-127.0.0.1}:${SILLAGE_PORT:-4001}:4000"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "await fetch('http://127.0.0.1:4000/health').then(r=>{if(!r.ok)process.exit(1)})"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  wholesale-cron:
+    <<: *core
+    container_name: wholesale-cron
+    hostname: wholesale-cron
+    command: ["/usr/local/bin/supercronic", "-passthrough-logs", "/app/crontab"]
+
+networks:
+  ecom_network:
+    name: ecom_network
+    external: true
+  redis_network:
+    name: redis_network
+    external: true

@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# -----------------------
+# Configuration
+# -----------------------
+
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SNAPSHOT_DIR="$PROJECT_DIR/snapshots"
+
+WP_DATA="$PROJECT_DIR/data/wp"
+DB_DATA="$PROJECT_DIR/data/wp-db"
+
+ENV_FILE="$PROJECT_DIR/.env"
+COMPOSE_FILE="$PROJECT_DIR/compose.yaml"
+
+mkdir -p "$SNAPSHOT_DIR"
+
+# docker compose wrapper
+if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE="docker-compose"
+else
+    COMPOSE="docker compose"
+fi
+
+die() {
+    echo "Error: $1"
+    exit 1
+}
+
+usage() {
+cat <<EOF
+Usage:
+
+  ./wp-state save NAME
+  ./wp-state restore NAME
+  ./wp-state list
+  ./wp-state info NAME
+  ./wp-state delete NAME
+EOF
+}
+
+stop_stack() {
+    echo "Stopping containers..."
+    $COMPOSE down
+}
+
+start_stack() {
+    echo "Starting containers..."
+    $COMPOSE up -d
+}
+
+save_snapshot() {
+
+    NAME="$1"
+    DEST="$SNAPSHOT_DIR/$NAME"
+
+    [[ -d "$DEST" ]] && die "Snapshot '$NAME' already exists."
+
+    mkdir -p "$DEST"
+
+    stop_stack
+
+    echo "Saving WordPress files..."
+    tar --zstd -cf "$DEST/wp.tar.zst" -C "$PROJECT_DIR/data" wp
+
+    echo "Saving MySQL files..."
+    tar --zstd -cf "$DEST/db.tar.zst" -C "$PROJECT_DIR/data" wp-db
+
+    cp "$ENV_FILE" "$DEST/.env"
+    cp "$COMPOSE_FILE" "$DEST/docker-compose.yml"
+
+    cat > "$DEST/metadata.json" <<EOF
+{
+  "name":"$NAME",
+  "created":"$(date -Iseconds)",
+  "hostname":"$(hostname)"
+}
+EOF
+
+    start_stack
+
+    echo
+    echo "Snapshot '$NAME' created."
+}
+
+restore_snapshot() {
+
+    NAME="$1"
+    SRC="$SNAPSHOT_DIR/$NAME"
+
+    [[ ! -d "$SRC" ]] && die "Snapshot not found."
+
+    read -rp "Restore '$NAME'? This deletes current data. [y/N] " ans
+
+    [[ "$ans" =~ ^[Yy]$ ]] || exit
+
+    stop_stack
+
+    rm -rf "$WP_DATA"
+    rm -rf "$DB_DATA"
+
+    mkdir -p "$PROJECT_DIR/data"
+
+    echo "Restoring WordPress..."
+    tar --zstd -xf "$SRC/wp.tar.zst" -C "$PROJECT_DIR/data"
+
+    echo "Restoring database..."
+    tar --zstd -xf "$SRC/db.tar.zst" -C "$PROJECT_DIR/data"
+
+    cp "$SRC/.env" "$ENV_FILE"
+    cp "$SRC/docker-compose.yml" "$COMPOSE_FILE"
+
+    start_stack
+
+    echo
+    echo "Snapshot restored."
+}
+
+list_snapshots() {
+
+    printf "%-30s %-12s %-20s\n" "NAME" "SIZE" "CREATED"
+    printf "%-30s %-12s %-20s\n" "------------------------------" "------------" "--------------------"
+
+    for d in "$SNAPSHOT_DIR"/*; do
+        [[ -d "$d" ]] || continue
+
+        name=$(basename "$d")
+        size=$(du -sh "$d" | cut -f1)
+
+        created="-"
+
+        if [[ -f "$d/metadata.json" ]]; then
+            created=$(grep created "$d/metadata.json" | cut -d'"' -f4)
+        fi
+
+        printf "%-30s %-12s %-20s\n" "$name" "$size" "$created"
+    done
+}
+
+info_snapshot() {
+
+    NAME="$1"
+    FILE="$SNAPSHOT_DIR/$NAME/metadata.json"
+
+    [[ ! -f "$FILE" ]] && die "Snapshot not found."
+
+    cat "$FILE"
+}
+
+delete_snapshot() {
+
+    NAME="$1"
+
+    [[ ! -d "$SNAPSHOT_DIR/$NAME" ]] && die "Snapshot not found."
+
+    read -rp "Delete snapshot '$NAME'? [y/N] " ans
+
+    [[ "$ans" =~ ^[Yy]$ ]] || exit
+
+    rm -rf "$SNAPSHOT_DIR/$NAME"
+
+    echo "Deleted."
+}
+
+case "${1:-}" in
+
+save)
+    [[ $# -eq 2 ]] || usage
+    save_snapshot "$2"
+    ;;
+
+restore)
+    [[ $# -eq 2 ]] || usage
+    restore_snapshot "$2"
+    ;;
+
+list)
+    list_snapshots
+    ;;
+
+info)
+    [[ $# -eq 2 ]] || usage
+    info_snapshot "$2"
+    ;;
+
+delete)
+    [[ $# -eq 2 ]] || usage
+    delete_snapshot "$2"
+    ;;
+
+*)
+    usage
+    exit 1
+    ;;
+
+esac

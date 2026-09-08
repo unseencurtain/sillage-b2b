@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog lang="en_GB">
+  <product>
+    <id>1</id>
+    <ean>1231231231234</ean>
+    <all_eans>
+      <ean>1231231231234</ean>
+      <ean>4564564564567</ean>
+      <ean>7897897897891</ean>
+    </all_eans>
+    <pictures>
+      <flask_front>https://images.elsvc.net/xml/HQlgckCAqXUZdlXzHgtlzQ.jpg</flask_front>
+      <shade>https://images.elsvc.net/xml/shade-ignored.jpg</shade>
+    </pictures>
+  </product>
+  <product>
+    <id>2</id>
+    <ean>9999999999999</ean>
+    <all_eans>
+      <ean>9999999999999</ean>
+    </all_eans>
+    <pictures>
+      <flask_front>https://example.com/no_image.jpg</flask_front>
+    </pictures>
+  </product>
+  <product>
+    <id>3</id>
+    <ean>1111111111111</ean>
+    <pictures>
+      <other>https://images.elsvc.net/xml/fallback-only.jpg</other>
+    </pictures>
+  </product>
+</catalog>

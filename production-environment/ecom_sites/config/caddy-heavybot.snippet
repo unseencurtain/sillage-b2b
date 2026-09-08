@@ -1,0 +1,18 @@
+# Paste as the FIRST handlers inside the shop site block of /etc/caddy/Caddyfile.
+# Do not put this on the images CDN host — those are cheap static files.
+# Full story: docs/CRAWLER-SHIELD.md
+#
+# Then:
+#   sudo caddy validate --config /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Check:
+#   curl -sI -A "Mozilla/5.0 (compatible; ClaudeBot/1.0)" https://SHOP/ | head
+#   # expect HTTP/2 403
+#   curl -sI -A "Mozilla/5.0" https://SHOP/ | head
+#   # expect HTTP/2 200
+
+	@heavybot header_regexp User-Agent (?i)(ClaudeBot|GPTBot|CCBot|Bytespider|Amazonbot|meta-externalagent)
+	handle @heavybot {
+		respond "Forbidden" 403
+	}

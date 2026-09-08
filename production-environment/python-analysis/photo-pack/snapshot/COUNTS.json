@@ -1,0 +1,47 @@
+{
+  "captured_at": "2026-09-03T20:39:10Z",
+  "matches_overview": {
+    "visible_in_shop": 25978,
+    "published": 54509,
+    "hidden_from_catalog": 28531,
+    "hidden_no_or_weak_image_in_stock": 9774,
+    "hidden_stock_threshold": 18756
+  },
+  "usable_shop_photo": {
+    "yes": 41149,
+    "no": 13360,
+    "no_and_in_stock": 9775,
+    "no_and_out_of_stock": 3585
+  },
+  "of_the_9775_style_card": {
+    "total": 9774,
+    "we_already_have_unused_file_or_url": 9621,
+    "no_file_anywhere": 153
+  },
+  "out_of_stock_hidden": {
+    "total": 18756,
+    "already_have_shop_photo": 15171,
+    "no_usable_shop_photo": 3585
+  },
+  "can_vs_cannot": {
+    "CAN_fill_any_missing_sku": 13191,
+    "CANNOT_fill_any_missing_sku": 169,
+    "CAN_fill_overview_no_image_in_stock": 9621,
+    "CANNOT_fill_overview_no_image_in_stock": 153,
+    "sources": [
+      "our CDN ~/ecom_sites/data/media",
+      "image_overrides.json (Shopify / BTS / ocean / our CDN URLs)",
+      "ean-image-scrape/scraped (UNREVIEWED)",
+      "brasty dump real photos only (camera placeholders excluded: 1269 files)"
+    ],
+    "not_a_source": "wholesale export.csv (EANs only, no image URLs). BeautyFort /pic/ thumbs are weak, not photos."
+  },
+  "woo_thumb_kind": {
+    "our_cdn": 3709,
+    "shopify": 3738,
+    "bts_cdn": 33619,
+    "none": 13360,
+    "oceanfragrances": 83
+  },
+  "note": "Overview 'Hidden \u00b7 no/weak image' = exclude-from-catalog AND NOT outofstock. Overview 'Hidden \u00b7 stock' = exclude-from-catalog AND outofstock. A product with no photo AND stock 0 is counted on the stock card, not the image card. That is why file 02 exists."
+}

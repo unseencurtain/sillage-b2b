@@ -1,19 +1,53 @@
-# Sillage B2B (archive)
+# sillage-b2b — wholesale-perfumes shop
 
-**Do not deploy this repo.** Live wholesale is in
-[unseencurtain/Sillage](https://github.com/unseencurtain/Sillage) as a second
-WordPress on the same VPS (`SILLAGE_PROFILE=wholesale`).
+Standalone dropshipping engine for **wholesale-perfumes.eu** only. This repo can deploy its own
+WordPress + dashboard without [unseencurtain/Sillage](https://github.com/unseencurtain/Sillage)
+(BeautyFort + BTS retail).
 
 | | Live |
 |---|---|
 | Shop | https://wholesale.mirainikki.xyz |
 | Dashboard | https://sillage-wholesale.mirainikki.xyz |
-| Spec | [`docs/WHOLESALE-SITE.md`](https://github.com/unseencurtain/Sillage/blob/main/docs/WHOLESALE-SITE.md) in **Sillage** |
-| Vendor | wholesale-perfumes only, €300 MOQ, sandbox dispatch |
+| Vendor | wholesale-perfumes only |
+| Minimum order | €300 |
+| Dispatch | sandbox (dry-run) — never hits vendor cart/submit |
 
-This tree was an August 2026 extract (`pre-scratch-20260808`) of the
-wholesale-perfumes connector. The vendor code, compose profile, and shop now
-live in Sillage. Cart/order API notes remain under `docs/` here for history.
+## Run locally
 
-Retail LPS ([unseencurtain/Sillage](https://github.com/unseencurtain/Sillage))
-still sells BeautyFort + BTS only.
+```bash
+cd production-environment
+cp .env.example .env          # fill MYSQL_* / DASHBOARD_* / WHOLESALE_PERFUMES_*
+docker network create ecom_network
+docker network create redis_network
+touch sillage-core/data/secrets.overlay.env
+docker compose --env-file .env up -d
+```
+
+Engine + dashboard without Docker:
+
+```bash
+cd production-environment/sillage-core
+bun install
+bun run web:build
+bun test
+bun run dev   # needs MariaDB from compose
+```
+
+Hub image (build on the VPS that is `docker login` as unseencurtain):
+
+```bash
+./production-environment/scripts/build-push-images.sh --core-only
+```
+
+Tag `unseencurtain/sillage-b2b:<sha>`. Do not rebuild WordPress unless asked.
+
+First shop bring-up: `production-environment/scripts/bootstrap-wholesale.sh`.
+
+## Settings → Advanced
+
+Volume filter and description mode apply to this perfume catalogue. Company billing is the
+**wholesale-perfumes** invoice profile used on dry-run dispatch payloads — not BeautyFort/BTS.
+
+## Not this repo
+
+Retail LPS (prinscosmetic.eu, BeautyFort + BTS) stays in **Sillage**. Do not copy those connectors here.

@@ -1,5 +1,82 @@
-.env
-**/.env
 node_modules/
-.DS_Store
+/sillage/
+dist/
+web/dist/
+.env
+.env.*
+!.env.example
 *.log
+*.pem
+.DS_Store
+
+# Vendor feed downloads and offline fixtures — large, regenerable
+.feedscratch/
+
+# Runtime logs written by the containers
+production-environment/sillage-core/logs/
+**/scratch-*.ts
+
+# WordPress + MariaDB bind mounts. Ignore everything under data/, then re-include only
+# the sillage-bridge plugin (each parent directory must be un-ignored for git to descend).
+production-environment/ecom_sites/data/**
+!production-environment/ecom_sites/data/wp/
+# Keep the LPS media mount directory, never the image files themselves.
+!production-environment/ecom_sites/data/media/
+production-environment/ecom_sites/data/media/**
+!production-environment/ecom_sites/data/media/.gitkeep
+production-environment/ecom_sites/data/wp/**
+!production-environment/ecom_sites/data/wp/wp-content/
+production-environment/ecom_sites/data/wp/wp-content/**
+!production-environment/ecom_sites/data/wp/wp-content/plugins/
+production-environment/ecom_sites/data/wp/wp-content/plugins/**
+!production-environment/ecom_sites/data/wp/wp-content/plugins/sillage-bridge/
+!production-environment/ecom_sites/data/wp/wp-content/plugins/sillage-bridge/**
+
+production-environment/ecom_sites/snapshots/
+
+# Local scratch / chat dumps — not part of the product
+chats_with_claude.txt
+google.txt
+reddit_comment.txt
+wp-plugin-directory.txt
+vendor-sync-plan-claude.md
+
+# VPS deploy scratch (credentials, one-off notes)
+.deploy/
+
+# Offline image-enrichment fixtures (large vendor dumps). Code + generated overrides stay tracked.
+production-environment/python-analysis/beautyfort-enriched/products/
+production-environment/python-analysis/beautyfort-enriched/output/*.csv
+production-environment/python-analysis/beautyfort-enriched/output/image_overrides.json
+production-environment/python-analysis/beautyfort-enriched/__pycache__/
+production-environment/python-analysis/.env
+
+# Runtime photo pack (JPEG bytes + zip). Scripts live under python-analysis/photo-pack/
+/photo-pack/
+tmp-image-inventory/
+tools/images/brasty/node_modules/
+tools/images/brasty/dist/
+tools/images/brasty/.env
+tools/images/brasty/storageState.json
+tools/images/brasty/output/
+tools/images/brasty/watermarked/
+tools/images/brasty/findings/*
+!tools/images/brasty/findings/.gitkeep
+tools/images/brasty/logs/*
+!tools/images/brasty/logs/.gitkeep
+tools/images/brasty/*.jpg
+tools/images/brasty/*.jpeg
+tools/images/brasty/*.png
+tools/images/brasty/*.webp
+tools/images/brasty/*.csv
+
+# Timestamped backups build-overrides.ts writes next to the tracked overrides file
+production-environment/sillage-core/data/image_overrides.json.bak-*
+
+# Dashboard Secrets overlay (vendor API credentials) — never commit
+production-environment/sillage-core/data/secrets.overlay.env
+production-environment/sillage-core/data/secrets.overlay.wpf.env
+
+# Scratch DB left behind by the standalone BTS reference client
+/data/
+

@@ -1,0 +1,31 @@
+# Local edge: keep public URLs at /lps-media/* while ecom never serves binaries.
+:80 {
+	header {
+		-Server
+		-Via
+		-X-Powered-By
+	}
+	handle_path /lps-media/* {
+		header {
+			-Server
+			-Via
+		}
+		reverse_proxy lps-media:80 {
+			header_down -Server
+			header_down -Via
+		}
+	}
+	handle /robots.txt {
+		root * /srv/sitemaps
+		file_server
+	}
+	handle /wp-sitemap* {
+		root * /srv/sitemaps
+		file_server
+	}
+	reverse_proxy ecom:80 {
+		header_down -Server
+		header_down -Via
+		header_down -X-Powered-By
+	}
+}

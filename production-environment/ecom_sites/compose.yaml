@@ -1,0 +1,10 @@
+# Deprecated standalone project. Use the unified stack:
+#   cd ../ && docker compose --env-file .env up -d
+#   # local gateway on :80:
+#   cd ../ && docker compose --env-file .env --profile local up -d
+#
+# This file remains only as a thin include for older muscle memory.
+name: sillage
+include:
+  - path: ../compose.yaml
+    env_file: ../.env

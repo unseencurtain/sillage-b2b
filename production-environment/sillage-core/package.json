@@ -1,0 +1,46 @@
+{
+  "name": "sillage-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-vendor product sync and order dispatch engine for the Sillage WooCommerce storefront",
+  "scripts": {
+    "dev": "bun run --hot src/server/index.ts",
+    "start": "bun run src/server/index.ts",
+    "migrate": "bun run src/cli/migrate.ts",
+    "sync": "bun run src/cli/sync.ts",
+    "sitemap": "bun run src/cli/sitemap.ts",
+    "orders": "bun run src/cli/orders.ts",
+    "doctor": "bun run src/cli/doctor.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "web:dev": "vite --config web/vite.config.ts",
+    "web:build": "vite build --config web/vite.config.ts"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.10.1",
+    "hono": "^4.6.14",
+    "mysql2": "^3.11.5",
+    "php-serialize": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.62.7",
+    "@tanstack/react-table": "^8.20.5",
+    "@types/bun": "latest",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
+    "recharts": "^2.15.0",
+    "tailwind-merge": "^2.5.5",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  }
+}

@@ -1,0 +1,6 @@
+# Deprecated. Valkey now lives in production-environment/compose.yaml.
+#   cd .. && docker compose --env-file .env up -d valkey
+name: sillage
+include:
+  - path: ../compose.yaml
+    env_file: ../.env

@@ -1,0 +1,64 @@
+{
+  "captured_at": "2026-09-03T19:57:42Z",
+  "live_host": "ovhe (ovh-experi / 139.99.61.71)",
+  "shop": "https://prinscosmetic.eu",
+  "images_cdn": "https://images.prinscosmetic.eu",
+  "do_not_apply_scraped_to_shop": true,
+  "hide_without_image": "on",
+  "counts": {
+    "shop_products": 54505,
+    "shop_with_usable_photo": 41147,
+    "shop_missing_usable_photo": 13358,
+    "shop_missing_sql_empty_or_non_http": 13360,
+    "shop_missing_but_we_already_have_bytes": 13191,
+    "shop_missing_no_bytes_anywhere": 167,
+    "shop_missing_also_in_wholesale_export": 519,
+    "shop_missing_in_export_and_no_bytes": 3,
+    "by_shop_status": {
+      "missing": 13357,
+      "has_shop_photo": 41147,
+      "hidden_unusable_thumb": 1
+    },
+    "by_vendor": {
+      "beautyfort": 9376,
+      "bts": 45129
+    },
+    "cdn_files": 4198,
+    "scraped_files_unapplied": 13204,
+    "brasty_dump_files": 35567,
+    "override_keys_usable": 10955,
+    "third_party_hotlink_urls": 4652,
+    "third_party_by_host": {
+      "cdn.shopify.com": 3822,
+      "images.btswholesaler.com": 757,
+      "www.oceanfragrances.com": 73
+    },
+    "unique_image_index_rows": 83377,
+    "wholesale_export_rows": 11013,
+    "wholesale_export_unique_eans": 11013,
+    "wholesale_export_coverage": {
+      "override_url": 1298,
+      "our_cdn_file": 1250,
+      "brasty_dump": 3360,
+      "no_image_anywhere": 4615,
+      "scraped_unapplied": 490
+    }
+  },
+  "wholesale_export": {
+    "file": "/home/ubuntu/.cursor/projects/workspace/uploads/export_0e0e.csv",
+    "has_image_url_column": false,
+    "note": "Semicolon CSV (id, brand, title, type, sex, volume, stock, price, EAN, \u2026). No http(s) image URLs. Used as an EAN catalogue to match against our photos."
+  },
+  "what_still_missing_means": {
+    "on_the_live_shop": 13358,
+    "after_counting_files_we_already_have_but_have_not_applied": 167,
+    "explanation": "Live shop hides products whose Woo thumb is empty, not http(s), a placeholder, or a BeautyFort /pic/ thumb. Scraped/ and Brasty files are NOT on the shop until someone inspects them and runs apply with --apply-to-shop. Do not apply yet."
+  },
+  "restore_on_new_vps": [
+    "Copy files/cdn/ \u2192 ~/ecom_sites/data/media/",
+    "Copy maps/image_overrides.json \u2192 ~/sillage/sillage-core/data/image_overrides.json",
+    "Optional: copy files/brasty/ \u2192 ~/brasty/ for future matching",
+    "Optional: files/scraped/ is unreviewed \u2014 do not copy onto the CDN until inspected",
+    "Recreate sillage-core / sillage-cron, then: docker exec sillage-core bun run sync -- --mode=full --source=cache --rewrite-only"
+  ]
+}

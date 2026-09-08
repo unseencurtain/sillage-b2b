@@ -1,0 +1,10 @@
+# Sillage schedule, run by supercronic inside the sillage-core container.
+#
+# Cron only provides the heartbeat. What actually runs is decided by src/sync/schedule.ts from
+# sil_settings, so the cadence is changed from the dashboard rather than by editing this file and
+# rebuilding the image. A five-minute tick is fine-grained enough for any cadence an operator would
+# reasonably choose, and a tick with nothing to do costs one query.
+#
+# Times are in the container's TZ, which the Dockerfile pins to UTC.
+
+*/5 * * * * cd /app && bun run src/cli/schedule.ts

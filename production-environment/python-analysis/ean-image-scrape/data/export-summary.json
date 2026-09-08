@@ -1,0 +1,7 @@
+{
+  "missing_with_barcode": 13207,
+  "unique_lookup_eans": 13205,
+  "skipped_no_barcode": 62,
+  "csv": "/home/ubuntu/sillage/ean-image-scrape/missing-products.csv",
+  "json": "/home/ubuntu/sillage/ean-image-scrape/missing-products.json"
+}
