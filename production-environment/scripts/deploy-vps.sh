@@ -268,6 +268,14 @@ if [[ "$WITH_WORDPRESS" -eq 0 ]]; then
   WP_IMAGE="${NAMESPACE}/sillage-wordpress:latest"
 fi
 
+# When building, the tag is this commit — that is the point. When not building, deploy what .env
+# pins: a doc-only commit moves HEAD without changing any image, and deriving the tag from HEAD
+# regardless would demand a pointless rebuild for a tag that was never pushed.
+if [[ "$SKIP_BUILD" -eq 1 ]]; then
+  CORE_IMAGE="${SILLAGE_CORE_IMAGE:-$CORE_IMAGE}"
+  WP_IMAGE="${WORDPRESS_IMAGE:-$WP_IMAGE}"
+fi
+
 if [[ "$SKIP_BUILD" -eq 0 && "$WITH_WORDPRESS" -eq 0 ]]; then
   echo "NOTE: --core-only skips the WordPress image. Empty VPS first boot must omit --core-only."
 fi
@@ -316,6 +324,33 @@ if [[ "$WITH_WORDPRESS" -eq 1 ]]; then
     exit 1
   fi
   log_step "WordPress image carries ${IMAGE_WP} (matches pin)"
+fi
+
+# The same trap, one layer down. A tag says nothing about the engine code inside it either, and
+# that is worse than a stale WordPress because it is invisible: the shop looks fine and one
+# behaviour is quietly missing. A rebuild once shipped an image predating the fix that lets an
+# operator start the first import, so pressing Rebuild catalogue did nothing — with the repo, the
+# docs and the retrospective all insisting it was fixed. Compare the source in the image against
+# the checkout being deployed.
+if [[ "$SKIP_BUILD" -eq 1 ]]; then
+  # LC_ALL applies to sort, not just find: the container sorts in C and a glibc host sorts
+  # case-insensitively, which reorders VendorConnector.ts and changes the hash of identical trees.
+  src_hash() { find . -type f -name '*.ts' | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -c1-64; }
+  LOCAL_SRC="$(cd "$PE/sillage-core/src" && src_hash)"
+  IMAGE_SRC="$("${SSH[@]}" "$HOST" "docker pull -q '$CORE_IMAGE' >/dev/null 2>&1; docker run --rm --entrypoint sh '$CORE_IMAGE' -c 'cd /app/src && find . -type f -name \"*.ts\" | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -c1-64'" 2>/dev/null | tr -d '[:space:]')"
+  if [[ -z "$IMAGE_SRC" ]]; then
+    echo "Could not read engine source from ${CORE_IMAGE} (missing on Hub?)" >&2
+    exit 1
+  fi
+  if [[ "$LOCAL_SRC" != "$IMAGE_SRC" ]]; then
+    echo "${CORE_IMAGE} was built from different engine source than this checkout." >&2
+    echo "  image ${IMAGE_SRC}" >&2
+    echo "  local ${LOCAL_SRC}" >&2
+    echo "Rebuild and push that tag on the Hub-logged-in host, then deploy again:" >&2
+    echo "  ssh <build-host> 'cd ~/build-wholesale && bash scripts/build-push-images.sh --core-only --tag <sha>'" >&2
+    exit 1
+  fi
+  log_step "Engine image matches the checkout's sillage-core/src"
 fi
 
 echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
