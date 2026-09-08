@@ -91,9 +91,15 @@ describe("schedule decisions", () => {
     expect(d.action).toBe("skip");
   });
 
-  test("an empty catalogue seeds with a full sync", () => {
+  test("an empty catalogue waits for the operator instead of seeding itself", () => {
     const d = decide(settings(), timing({ minutesSinceAny: null, fullRunsSinceWindow: 1 }));
-    expect(d.action).toBe("full");
+    expect(d.action).toBe("skip");
+    expect(d.reason).toContain("start the first import from the dashboard");
+  });
+
+  test("the nightly full sync does not seed a catalogue nobody has imported yet", () => {
+    const d = decide(settings(), timing({ minutesSinceAny: null, fullRunsSinceWindow: 0 }));
+    expect(d.action).toBe("skip");
   });
 
   test("an out-of-range hour is clamped rather than rejected", () => {

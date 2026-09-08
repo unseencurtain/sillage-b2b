@@ -92,6 +92,18 @@ export function decide(
   }
 
   const hour = normaliseHour(settings.fullSyncHour);
+  const since = timing.minutesSinceAny;
+
+  // The first import is the operator's call, never the scheduler's. A fresh shop needs its pages,
+  // theme and shipping set up before the whole wholesale catalogue lands in it, and an unattended
+  // seed on a new VPS competes with WordPress for a small box's memory — the WPF full sync alone
+  // peaks near 2 GB. Until one run has succeeded, every tick declines and waits for Start.
+  if (since === null) {
+    return {
+      action: "skip",
+      reason: "no sync has ever succeeded — start the first import from the dashboard",
+    };
+  }
 
   // Counted over all statuses, not just successful ones, so a failing full sync is attempted once
   // per day rather than retried on every tick for the rest of the day. A failure is surfaced on the
@@ -100,10 +112,6 @@ export function decide(
     return { action: "full", reason: `nightly full sync for ${String(hour).padStart(2, "0")}:00 is due` };
   }
 
-  const since = timing.minutesSinceAny;
-  if (since === null) {
-    return { action: "full", reason: "no successful run on record, seeding the catalogue" };
-  }
   if (since >= settings.fastSyncMinutes) {
     if (pendingRebuild) {
       return {
