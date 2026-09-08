@@ -15,17 +15,17 @@ You run everything from your **laptop** in a clone of this repo. The VPS never n
 |---|---|
 | Shop (WooCommerce) | `https://shop.example.com` |
 | Dashboard (Sillage) | `https://ops.example.com` |
-| Product images CDN | `https://images.example.com/<file>` (optional `--images`) |
+| Product photos | Vendor catalog `flask_front` URLs (not a VPS JPEG CDN) |
 | Passwords file (laptop only) | `.deploy/vps-dashboard-<ssh-host>.txt` |
 
 **One compose + one env** on the VPS:
 
 | Path | Role |
 |---|---|
-| `~/sillage-wholesale/compose.yaml` | Entire stack (wholesale-ecom, wholesale-db, wholesale-valkey, wholesale-media, wholesale-core, wholesale-cron) |
+| `~/sillage-wholesale/compose.yaml` | Entire stack (wholesale-ecom, wholesale-db, wholesale-valkey, wholesale-core, wholesale-cron) |
 | `~/sillage-wholesale/.env` | All secrets + image tags + domains |
-| `~/ecom_sites/data/{wp-wholesale,wholesale-db,media}` | Host volumes (WP, MariaDB, product images) |
-| Host Caddy (`/etc/caddy/Caddyfile`) | TLS edge → `:106` / `:105` / `:4001`. Shop block **must** include the AI-crawler 403 — [`CRAWLER-SHIELD.md`](CRAWLER-SHIELD.md) |
+| `~/ecom_sites/data/{wp-wholesale,wholesale-db}` | Host volumes (WP, MariaDB). Not `media/` — that is Sillage retail. |
+| Host Caddy (`/etc/caddy/Caddyfile`) | TLS edge → `:106` / `:4001`. Shop block **must** include the AI-crawler 403 — [`CRAWLER-SHIELD.md`](CRAWLER-SHIELD.md). No `images.*` site: photos are vendor `flask_front` URLs. The JPEG folder `~/ecom_sites/data/media` is the **Sillage** retail CDN. |
 
 Images are pulled from Docker Hub (`unseencurtain/sillage-b2b:<sha>`, `unseencurtain/sillage-wordpress:<sha>`). Minimal rsync covers compose, config, plugin, and `image_overrides.json` only — **not** a full source-tree sync. After the first deploy, day-2 updates are Hub pull + that thin rsync.
 
@@ -114,7 +114,6 @@ Host my-sillage
   --host my-sillage \
   --shop shop.example.com \
   --dash ops.example.com \
-  --images images.example.com \
   --dns \
   --ip YOUR_VPS_IP
 ```
@@ -149,7 +148,6 @@ Expect ~5–15 minutes the first time (image builds + pulls).
   --host ovhe \
   --shop shop.example.com \
   --dash ops.example.com \
-  --images images.example.com \
   --skip-build
 ```
 
@@ -211,7 +209,7 @@ docker compose --env-file .env --profile local up -d
 
 Then manually: complete WP in the browser (`http://localhost` or `:106`), install + activate **WooCommerce**, activate **sillage-bridge**, patch `wp-config.php` with `SILLAGE_SHARED_SECRET` + `SILLAGE_DASHBOARD_URL=http://127.0.0.1:4001` (see `scripts/vps-bootstrap.sh`), create the `sillage` DB user + grants (`ecom_sites/config/sillage-grants-wholesale.sql`), `docker exec wholesale-core bun run migrate`, and lime `SELECT` grants on `sil_*` tables (see deploy script tail). Dashboard: `http://127.0.0.1:4001`.
 
-`shop-gateway` (profile `local`) serves `http://localhost` and `/lps-media/*`. VPS uses host Caddy instead — do not enable the local profile there.
+`shop-gateway` (profile `local`) serves `http://localhost` to `wholesale-ecom`. Product photos are vendor `flask_front` URLs, not `/lps-media`. VPS uses host Caddy instead — do not enable the local profile there.
 
 ---
 
@@ -275,7 +273,6 @@ cp -n production-environment/.env.example production-environment/.env
   --host ovhe \
   --shop shop.YOUR_DOMAIN \
   --dash ops.YOUR_DOMAIN \
-  --images images.YOUR_DOMAIN \
   --skip-build \
   --ip YOUR_PROD_IP
 

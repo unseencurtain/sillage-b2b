@@ -1,19 +1,10 @@
-# Local edge: keep public URLs at /lps-media/* while ecom never serves binaries.
+# Local edge for laptop --profile local. Product photos are vendor flask_front
+# URLs, not files from the retail Sillage CDN (~/ecom_sites/data/media).
 :80 {
 	header {
 		-Server
 		-Via
 		-X-Powered-By
-	}
-	handle_path /lps-media/* {
-		header {
-			-Server
-			-Via
-		}
-		reverse_proxy wholesale-media:80 {
-			header_down -Server
-			header_down -Via
-		}
 	}
 	handle /robots.txt {
 		root * /srv/sitemaps

@@ -42,9 +42,10 @@ Hub image (build on the VPS that is `docker login` as unseencurtain):
 
 Tag `unseencurtain/sillage-b2b:<sha>`. WordPress is pinned (7.1 / PHP 8.3), not `wordpress:latest`.
 
-Empty VPS: as root `bootstrap-host.sh`, then `deploy-vps.sh --host … --shop … --dash … --images …`.
-That installs WooCommerce, HPOS, Caddy, and `wholesale-media`. Do not use `bootstrap-wholesale.sh`
-(old second-shop-on-retail helper).
+Empty VPS: as root `bootstrap-host.sh`, then `deploy-vps.sh --host … --shop … --dash …`.
+That installs WooCommerce, HPOS, and Caddy (shop + dashboard). Product photos come from the
+wholesale-perfumes catalog (`flask_front` URLs), not from the retail JPEG folder on the VPS.
+Do not use `bootstrap-wholesale.sh` (old second-shop-on-retail helper).
 
 ## Settings → Advanced
 

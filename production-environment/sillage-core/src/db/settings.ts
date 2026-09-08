@@ -176,7 +176,7 @@ export async function loadSettings(): Promise<GlobalSettings> {
       )
         .trim()
         .replace(/\/$/, "");
-      return fromEnv || "https://images.prinscosmetic.eu";
+      return fromEnv || "";
     })(),
     wpBaseUrl: (() => {
       const fromDb = (map.get("wp_base_url") ?? "").trim().replace(/\/$/, "");

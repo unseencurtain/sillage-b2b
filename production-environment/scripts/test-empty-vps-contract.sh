@@ -38,8 +38,11 @@ check "deploy installs into ~/sillage-wholesale" \
 check "remote first-boot runs wp-fresh-install.php inside wholesale-ecom" \
   grep -q 'wholesale-ecom php /tmp/wp-fresh-install.php' "$PE/scripts/deploy-vps.sh"
 
-check "compose includes wholesale-media for empty-VPS CDN" \
-  grep -q 'container_name: wholesale-media' "$PE/compose.yaml"
+check "compose does not steal the retail Sillage image CDN" \
+  grep -qv 'container_name: wholesale-media' "$PE/compose.yaml"
+
+check "compose does not mount ~/ecom_sites/data/media" \
+  grep -qv 'ecom_sites/data}/media' "$PE/compose.yaml"
 
 check "compose has no retail ecom-db" \
   grep -qv 'container_name: ecom-db' "$PE/compose.yaml"

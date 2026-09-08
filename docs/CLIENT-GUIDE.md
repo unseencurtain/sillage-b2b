@@ -25,6 +25,8 @@ fields recalculates shop prices from stored offers (no live vendor download).
 
 **Hide products without image** (default on): empty or placeholder photos are excluded from the shop
 catalogue and search. Stock can still be 1. Products → Shop column shows **Hidden · no image**.
+Photos come from the wholesale-perfumes catalog (`flask_front` URLs). They are not files from
+`~/ecom_sites/data/media` — that folder is the Sillage retail CDN (BTS has no vendor images).
 
 **Cart minimum** is an optional small-order fee. Independent of the **€300** wholesale MOQ (Vendors
 → Min order value), which hard-blocks checkout.

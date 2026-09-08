@@ -10,20 +10,24 @@ Retail BeautyFort + BTS lives in [unseencurtain/Sillage](https://github.com/unse
 ## Memory — do not invent a different procedure
 
 1. **Empty VPS is first-class.** This repo must bring up WordPress, WooCommerce, HPOS, Caddy,
-   MariaDB (`wholesale-db`), Valkey, the image CDN (`wholesale-media`), and wholesale-core on a
-   blank Ubuntu box **without looking at unseencurtain/Sillage**. Recipe: `bootstrap-host.sh` as
-   root, then `deploy-vps.sh --host <new> --shop … --dash … --images …` (default builds **core +
-   WordPress** into `~/sillage-wholesale/`). `--core-only` is day-2 only. WordPress is pinned in
+   MariaDB (`wholesale-db`), Valkey, and wholesale-core on a blank Ubuntu box **without looking
+   at unseencurtain/Sillage**. Recipe: `bootstrap-host.sh` as root, then
+   `deploy-vps.sh --host <new> --shop … --dash …` (default builds **core + WordPress** into
+   `~/sillage-wholesale/`). `--core-only` is day-2 only. WordPress is pinned in
    `wordpress-image/Dockerfile` (`wordpress:7.1-php8.3-apache`). First boot runs
    `scripts/wp-fresh-install.php`.
+   **Photos:** wholesale-perfumes catalog XML (`flask_front` URLs). Do **not** create a
+   `wholesale-media` container or mount `~/ecom_sites/data/media`. That directory is the
+   **Sillage retail** CDN (`images.prinscosmetic.eu` / `lps-media`) because BTS has no vendor
+   images and some retail photos are hosted there.
 2. **Docker Hub builds happen on a VPS that is `docker login` as `unseencurtain` (today: ovhe).**
    Tag `unseencurtain/sillage-b2b:<sha>`. Do not install Docker in a cloud-agent pod. Do not float
    `wordpress:latest`. Do not run this empty-VPS deploy against ovhe while `wholesale-ecom` still
    lives inside the combined `~/sillage` compose — container names would collide. Cut over first.
 3. **This repo is the wholesale shop**, not a suffix on retail. Compose `name: sillage-wholesale`.
    Containers: `wholesale-ecom`, `wholesale-db`, `wholesale-core`, `wholesale-cron`,
-   `wholesale-valkey`, `wholesale-media`. Independent MariaDB and Valkey — do not add Sillage retail
-   services (no BeautyFort, no BTS, no `ecom` / `ecom-db`).
+   `wholesale-valkey`. Independent MariaDB and Valkey — do not add Sillage retail services
+   (no BeautyFort, no BTS, no `ecom` / `ecom-db`, no `lps-media`).
 4. **Dispatch is sandbox-locked.** `resolveDispatchDryRun()` always returns `true`. Never enable
    live vendor spend from Settings or Orders.
 5. **GitHub** is [unseencurtain/sillage-b2b](https://github.com/unseencurtain/sillage-b2b).

@@ -32,7 +32,6 @@ x-core: &core
     WORDPRESS_INTERNAL_URL: ${WORDPRESS_INTERNAL_URL:-http://wholesale-ecom}
     SILLAGE_SHARED_SECRET: ${SILLAGE_SHARED_SECRET}
     FIXTURES_DIR: /app/.feedscratch
-    LPS_MEDIA_BASE_URL: ${LPS_MEDIA_BASE_URL:-https://images.prinscosmetic.eu}
     SILLAGE_SECRETS_FILE: /app/data/secrets.overlay.env
     SITEMAP_DIR: /app/data/sitemaps
   volumes:
@@ -74,20 +73,6 @@ services:
       - redis_network
     restart: unless-stopped
     command: valkey-server --save "" --appendonly no
-
-  # Static product images. Empty VPS must serve images.* without the retail shop.
-  wholesale-media:
-    container_name: wholesale-media
-    hostname: wholesale-media
-    image: ${LPS_MEDIA_IMAGE:-nginx:alpine}
-    networks:
-      - ecom_network
-    restart: always
-    ports:
-      - "${MEDIA_BIND:-127.0.0.1}:${MEDIA_PORT:-105}:80"
-    volumes:
-      - ${DATA_DIR:-./ecom_sites/data}/media:/usr/share/nginx/html:ro
-      - ${LPS_MEDIA_NGINX_CONF:-./ecom_sites/config/nginx-lps-media.conf}:/etc/nginx/conf.d/default.conf:ro
 
   wholesale-ecom:
     container_name: wholesale-ecom
@@ -157,7 +142,6 @@ services:
     restart: always
     depends_on:
       - wholesale-ecom
-      - wholesale-media
     volumes:
       - ${GATEWAY_CADDYFILE:-./ecom_sites/config/Caddyfile.compose}:/etc/caddy/Caddyfile:ro
       - ${SITEMAP_HOST_DIR:-./ecom_sites/data/sitemaps}:/srv/sitemaps:ro

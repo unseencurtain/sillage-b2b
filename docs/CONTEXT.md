@@ -20,6 +20,11 @@ Project name: `sillage-wholesale`. Hub image: `unseencurtain/sillage-b2b:<sha>`.
 | `wholesale-core` | `unseencurtain/sillage-b2b:<tag>` | API + dashboard | `127.0.0.1:4001→4000` |
 | `wholesale-cron` | same as wholesale-core | Sync scheduler | internal |
 
+Product photos are **wholesale-perfumes catalog `flask_front` URLs** (hotlinks). This shop has
+no `lps-media` / `wholesale-media` container. `~/ecom_sites/data/media` and
+`https://images.prinscosmetic.eu` belong to **Sillage retail** because BTS has no vendor images
+and some retail photos are hosted on that VPS.
+
 Networks are **external** and must exist before `docker compose up`:
 `ecom_network` and `redis_network`.
 
