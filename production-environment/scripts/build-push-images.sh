@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # Run **on ovhe** (`ssh ovhe`). That host is already `docker login` as unseencurtain.
 # Do not build Hub images in a cloud-agent VM or on a laptop. Copy sillage-core
-# source to ~/sillage/sillage-core (keep data/ and logs/), then:
+# source to ~/sillage-wholesale/sillage-core (keep data/ and logs/), then:
 #
-#   ~/sillage/scripts/build-push-images.sh --core-only
-#   ~/sillage/scripts/build-push-images.sh --core-only --namespace unseencurtain --tag abc1234
+#   ~/sillage-wholesale/scripts/build-push-images.sh
+#   ~/sillage-wholesale/scripts/build-push-images.sh --namespace unseencurtain --tag abc1234
+#   ~/sillage-wholesale/scripts/build-push-images.sh --core-only   # day-2 engine bump; skip WP image
 #
 # Laptop git checkout (same script, still run it on ovhe after rsync):
-#   production-environment/scripts/build-push-images.sh --core-only
+#   production-environment/scripts/build-push-images.sh
 #
-# Default is **core-only**. Rebuilding sillage-wordpress from wordpress:latest can bump
-# WooCommerce on the live shop — pass --with-wordpress only when an operator asked.
+# Default builds **core + WordPress** so an empty VPS can come up unattended.
+# WordPress is pinned in wordpress-image/Dockerfile (not wordpress:latest).
+# Pass --core-only on a live shop when you only need a catalogue/engine bump.
 #
 # Tags each image as :<git-sha> and :latest (unless --no-latest).
 set -euo pipefail
@@ -23,10 +25,10 @@ WP_DIR="$PE/wordpress-image"
 NAMESPACE=""
 TAG=""
 PUSH_LATEST=1
-WITH_WORDPRESS=0
+WITH_WORDPRESS=1
 
 usage() {
-  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 

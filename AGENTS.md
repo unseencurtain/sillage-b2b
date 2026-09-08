@@ -2,7 +2,7 @@
 
 Standalone engine. **BeautyFort / BTS live in [unseencurtain/Sillage](https://github.com/unseencurtain/Sillage).** Do not add them here.
 
-Read [`README.md`](README.md) then [`docs/CONTEXT.md`](docs/CONTEXT.md) for containers/DB. Hub images: build on ovhe with `scripts/build-push-images.sh --core-only` → `unseencurtain/sillage-b2b:<sha>`.
+Read [`README.md`](README.md) then [`docs/CONTEXT.md`](docs/CONTEXT.md) for containers/DB. Empty VPS: `bootstrap-host.sh` then `deploy-vps.sh` (core + WordPress). Hub images: build on ovhe with `scripts/build-push-images.sh` → `unseencurtain/sillage-b2b:<sha>`. `--core-only` is day-2 only.
 
 **Operator dashboard:** [`docs/OPERATOR-DASHBOARD.md`](docs/OPERATOR-DASHBOARD.md).
 **Client how-to:** [`docs/CLIENT-GUIDE.md`](docs/CLIENT-GUIDE.md) — keep it in sync with UI changes.

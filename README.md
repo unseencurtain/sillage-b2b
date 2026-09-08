@@ -36,12 +36,15 @@ bun run dev   # needs MariaDB from compose
 Hub image (build on the VPS that is `docker login` as unseencurtain):
 
 ```bash
-./production-environment/scripts/build-push-images.sh --core-only
+./production-environment/scripts/build-push-images.sh          # empty VPS: core + WordPress
+./production-environment/scripts/build-push-images.sh --core-only  # day-2 engine only
 ```
 
-Tag `unseencurtain/sillage-b2b:<sha>`. Do not rebuild WordPress unless asked.
+Tag `unseencurtain/sillage-b2b:<sha>`. WordPress is pinned (7.1 / PHP 8.3), not `wordpress:latest`.
 
-First shop bring-up: `production-environment/scripts/bootstrap-wholesale.sh`.
+Empty VPS: as root `bootstrap-host.sh`, then `deploy-vps.sh --host … --shop … --dash … --images …`.
+That installs WooCommerce, HPOS, Caddy, and `wholesale-media`. Do not use `bootstrap-wholesale.sh`
+(old second-shop-on-retail helper).
 
 ## Settings → Advanced
 

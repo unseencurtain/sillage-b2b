@@ -5,13 +5,15 @@ set -euo pipefail
 
 set -a
 # shellcheck disable=SC1090
-if [[ -f "$HOME/sillage/.env" ]]; then
+SCRIPT_HOME="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -f "$SCRIPT_HOME/.env" ]]; then
+  source "$SCRIPT_HOME/.env"
+elif [[ -f "$HOME/sillage-wholesale/.env" ]]; then
+  source "$HOME/sillage-wholesale/.env"
+elif [[ -f "$HOME/sillage/.env" ]]; then
   source "$HOME/sillage/.env"
-elif [[ -f "$HOME/ecom_sites/.env" && -f "$HOME/sillage-core/.env" ]]; then
-  source "$HOME/ecom_sites/.env"
-  source "$HOME/sillage-core/.env"
 else
-  echo "Missing ~/sillage/.env" >&2
+  echo "Missing $SCRIPT_HOME/.env (or ~/sillage-wholesale/.env)" >&2
   exit 1
 fi
 set +a

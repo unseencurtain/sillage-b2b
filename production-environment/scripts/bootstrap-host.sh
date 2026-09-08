@@ -7,7 +7,7 @@ export DEBIAN_FRONTEND=noninteractive
 
 echo "==> apt update + base packages"
 apt-get update -y
-apt-get install -y ca-certificates curl gnupg ufw fail2ban apache2-utils rsync
+apt-get install -y ca-certificates curl gnupg ufw fail2ban apache2-utils rsync unzip python3
 
 if ! id -u ubuntu >/dev/null 2>&1; then
   echo "==> create ubuntu user"

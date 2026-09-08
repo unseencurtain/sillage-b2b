@@ -21,6 +21,7 @@ describe("wholesale storefront", () => {
     expect(compose).toContain("container_name: wholesale-core");
     expect(compose).toContain("container_name: wholesale-db");
     expect(compose).toContain("wholesale-valkey");
+    expect(compose).toContain("container_name: wholesale-media");
     expect(compose).not.toContain("container_name: ecom-db");
     expect(compose).not.toContain("BeautyFort");
   });
