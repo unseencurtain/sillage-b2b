@@ -184,6 +184,9 @@ if [[ "$FINISH" -eq 1 ]]; then
   echo "==> readiness check on ${HOST} (${SHOP_DOMAIN})"
   "${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/scripts"
   "${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
+  "${RSYNC[@]}" "$PE/scripts/apply-grants.sh" "$HOST:~/${REMOTE_DIR}/scripts/apply-grants.sh"
+  "${SSH[@]}" "$HOST" "cd ~/${REMOTE_DIR} && bash scripts/apply-grants.sh --strict" || exit $?
+  echo
   "${SSH[@]}" "$HOST" "docker cp ~/${REMOTE_DIR}/scripts/wp-readiness.php wholesale-ecom:/tmp/wp-readiness.php >/dev/null && docker exec -e SHOP_DOMAIN='${SHOP_DOMAIN}' -e WP_READINESS_FIX=1 wholesale-ecom php /tmp/wp-readiness.php"
   exit $?
 fi
@@ -325,6 +328,7 @@ echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
 "${RSYNC[@]}" "$PE/scripts/vps-bootstrap.sh" "$HOST:~/${REMOTE_DIR}/scripts/vps-bootstrap.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-config-patch.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-config-patch.php"
 "${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
+"${RSYNC[@]}" "$PE/scripts/apply-grants.sh" "$HOST:~/${REMOTE_DIR}/scripts/apply-grants.sh"
 "${RSYNC[@]}" "$PE/scripts/build-push-images.sh" "$HOST:~/${REMOTE_DIR}/scripts/build-push-images.sh"
 "${RSYNC[@]}" "$PE/scripts/fix-wp-content-perms.sh" "$HOST:~/${REMOTE_DIR}/scripts/fix-wp-content-perms.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-fresh-install.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-fresh-install.php"
@@ -723,14 +727,14 @@ fi
 
 cd "$APP_DIR"
 set -a; source .env; set +a
+# Applies and then verifies. The retail file is not a usable fallback here — its grants name
+# the `earth` database, which does not exist on wholesale-db — so a missing wholesale file is
+# a hard error rather than something to paper over.
 if [[ -f ecom_sites/config/sillage-grants-wholesale.sql ]]; then
-  sed -e "s|__SILLAGE_DB_PASSWORD__|${SILLAGE_DB_PASSWORD}|g" \
-      -e "s|__MYSQL_USER__|${MYSQL_USER:-lime}|g" \
-      ecom_sites/config/sillage-grants-wholesale.sql \
-    | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot
-elif [[ -f ecom_sites/config/sillage-grants.sql ]]; then
-  sed "s|__SILLAGE_DB_PASSWORD__|${SILLAGE_DB_PASSWORD}|g" ecom_sites/config/sillage-grants.sql \
-    | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot
+  bash scripts/apply-grants.sh
+else
+  echo "missing ecom_sites/config/sillage-grants-wholesale.sql — the engine user would have no grants" >&2
+  exit 1
 fi
 docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
   -e "GRANT SELECT, INSERT, UPDATE ON earth_wpf.wp_wc_order_addresses TO 'sillage'@'%'; FLUSH PRIVILEGES;" || true
@@ -743,7 +747,9 @@ echo "Images after prune:"
 docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
   -e "GRANT SELECT ON sillage_wpf.sil_ean_index TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_settings TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_vendors TO 'lime'@'%'; FLUSH PRIVILEGES;" || true
-docker exec wholesale-ecom php -r 'require "/var/www/html/wp-load.php"; require_once ABSPATH."wp-admin/includes/plugin.php"; activate_plugin("sillage-bridge/sillage-bridge.php"); echo "plugin ok\n";' || true
+if [[ "${WP_ACTIVATE_PLUGINS:-0}" == "1" ]]; then
+  docker exec wholesale-ecom php -r 'require "/var/www/html/wp-load.php"; require_once ABSPATH."wp-admin/includes/plugin.php"; activate_plugin("sillage-bridge/sillage-bridge.php"); echo "plugin ok\n";' || true
+fi
 
 # The live box was hand-tuned with swap that no script created, so a rebuilt VPS OOM-killed
 # the first import instead of finishing it. The WPF full sync alone peaks near 2 GB.
