@@ -37,7 +37,7 @@ Retail BeautyFort + BTS lives in [unseencurtain/Sillage](https://github.com/unse
 | **Live VPS** | SSH `ovhe` — `ubuntu@139.99.61.71` |
 | **Public URLs** | Shop `https://wholesale.mirainikki.xyz` · Dashboard `https://sillage-wholesale.mirainikki.xyz` |
 | **Compose** | `production-environment/compose.yaml` (`name: sillage-wholesale`) |
-| **Hub images** | `unseencurtain/sillage-b2b:<tag>`, `unseencurtain/sillage-wordpress:<tag>` |
+| **Hub images** | Live engine `unseencurtain/sillage-b2b:082d695`; empty-VPS WordPress `unseencurtain/sillage-wordpress:ab5ead8` (live `wholesale-ecom` still `d35613d`) |
 | **Env** | Laptop `production-environment/.env` → VPS `~/sillage-wholesale/.env` (gitignored) |
 | **Client how-to** | [`CLIENT-GUIDE.md`](CLIENT-GUIDE.md) |
 | **Operator UI** | [`OPERATOR-DASHBOARD.md`](OPERATOR-DASHBOARD.md) |
