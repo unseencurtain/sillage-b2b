@@ -8,6 +8,7 @@
 #   ./production-environment/scripts/deploy-vps.sh \
 #       --host ovhe \
 #       [--shop …] [--dash …] [--skip-dns-check] \
+#       [--dash-user wildwest] [--wp-user orange] \
 #       [--dns] [--ip 139.99.61.71] \
 #       [--skip-build] [--fresh] [--core-only] [--keep-caddy] [--replace-caddy]
 #
@@ -41,6 +42,21 @@ CLONE_FROM=""
 WITH_WORDPRESS=1
 KEEP_CADDY=""
 SKIP_DNS_CHECK=0
+DASH_USER=""
+WP_USER=""
+
+# Operator logins are chosen or generated, never "admin".
+check_operator() {
+  local flag="$1" name="$2"
+  if [[ "${name,,}" == *admin* ]]; then
+    echo "$flag must not contain \"admin\": $name" >&2
+    exit 1
+  fi
+  if [[ ! "$name" =~ ^[a-z0-9][a-z0-9._-]{1,31}$ ]]; then
+    echo "$flag must be 2-32 chars of a-z 0-9 . _ -: $name" >&2
+    exit 1
+  fi
+}
 
 usage() {
   sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
@@ -55,6 +71,8 @@ while [[ $# -gt 0 ]]; do
     --images) IMAGES_DOMAIN="${2:?}"; shift 2 ;;
     --dns) DO_DNS=1; shift ;;
     --skip-dns-check) SKIP_DNS_CHECK=1; shift ;;
+    --dash-user) DASH_USER="${2:?}"; check_operator --dash-user "$DASH_USER"; shift 2 ;;
+    --wp-user) WP_USER="${2:?}"; check_operator --wp-user "$WP_USER"; shift 2 ;;
     --ip) IP="${2:?}"; shift 2 ;;
     --skip-build) SKIP_BUILD=1; shift ;;
     --fresh) FRESH=1; shift ;;
@@ -312,6 +330,16 @@ fi
 echo "==> ensure remote .env"
 REMOTE_HAS_ENV=$("${SSH[@]}" "$HOST" "test -f ~/${REMOTE_DIR}/.env && echo yes || echo no")
 if [[ "$REMOTE_HAS_ENV" != "yes" || "$FRESH" -eq 1 ]]; then
+  new_operator() {
+    local prefix="$1" id name
+    while true; do
+      id="$(openssl rand -hex 3)"
+      name="${prefix}-${id}"
+      [[ "${name,,}" != *admin* ]] && { printf '%s' "$name"; return; }
+    done
+  }
+  DASH_USER="${DASH_USER:-$(new_operator desk)}"
+  WP_USER="${WP_USER:-$(new_operator shop)}"
   SECRET=$(openssl rand -hex 32)
   SESSION=$(openssl rand -hex 32)
   PASS=$(openssl rand -base64 18 | tr -d '/+=' | head -c 20)
@@ -390,7 +418,7 @@ WHOLESALE_PERFUMES_API_BASE_URL=${WHOLESALE_PERFUMES_API_BASE_URL:-https://www.w
 BRASTY_PRODUCT_FEED_URL=${BRASTY_PRODUCT_FEED_URL:-}
 BRASTY_AVAILABILITY_FEED_URL=${BRASTY_AVAILABILITY_FEED_URL:-}
 
-DASHBOARD_USER=admin
+DASHBOARD_USER=${DASH_USER}
 DASHBOARD_PASSWORD=${PASS}
 SESSION_SECRET=${SESSION}
 FIXTURES_DIR=/app/.feedscratch
@@ -401,10 +429,10 @@ EOF
   cat > "$CREDS" <<EOF
 host=${HOST}
 url=https://${DASH_DOMAIN}
-user=admin
+user=${DASH_USER}
 password=${PASS}
 shop=https://${SHOP_DOMAIN}
-wp_admin_user=admin
+wp_admin_user=${WP_USER}
 wp_admin_password=${WP_ADMIN_PASS}
 ip=${IP}
 created=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -455,7 +483,7 @@ PY
   cat > "$CREDS" <<EOF
 host=${HOST}
 url=https://${DASH_DOMAIN}
-user=admin
+user=${DASH_USER:-see ~/${REMOTE_DIR}/.env}
 password=${REMOTE_PASS}
 shop=https://${SHOP_DOMAIN}
 ip=${IP}
@@ -466,7 +494,7 @@ EOF
 fi
 
 echo "==> remote pull + up"
-"${SSH[@]}" "$HOST" "APP_DIR=\$HOME/${REMOTE_DIR} SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CLONE_MODE='${CLONE_FROM:+1}' FRESH='$FRESH' WP_ADMIN_PASS='${WP_ADMIN_PASS:-}' KEEP_CADDY='${KEEP_CADDY:-}' bash -s" <<'REMOTE'
+"${SSH[@]}" "$HOST" "APP_DIR=\$HOME/${REMOTE_DIR} SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CLONE_MODE='${CLONE_FROM:+1}' FRESH='$FRESH' WP_ADMIN_USER='${WP_USER:-}' WP_ADMIN_PASS='${WP_ADMIN_PASS:-}' KEEP_CADDY='${KEEP_CADDY:-}' bash -s" <<'REMOTE'
 set -euo pipefail
 cd "$APP_DIR"
 set -a; source .env; set +a
@@ -646,6 +674,7 @@ if [[ -z "${CLONE_MODE:-}" && ( "$NEED_FRESH" -eq 1 || "${FRESH:-0}" == "1" ) ]]
     docker cp "$INSTALL_PHP" wholesale-ecom:/tmp/wp-fresh-install.php
     docker exec \
       -e SHOP_DOMAIN="$SHOP_DOMAIN" \
+      -e WP_ADMIN_USER="${WP_ADMIN_USER:-}" \
       -e WP_ADMIN_PASS="${WP_ADMIN_PASS:-}" \
       -e SHOP_TITLE="${SHOP_TITLE:-Wholesale}" \
       wholesale-ecom php /tmp/wp-fresh-install.php
