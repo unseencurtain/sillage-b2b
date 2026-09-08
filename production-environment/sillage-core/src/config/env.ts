@@ -12,6 +12,19 @@ function opt(key: string, fallback = ""): string {
   return process.env[key] ?? fallback;
 }
 
+/** Never default to "admin" — that value is pre-filled by attackers. */
+function dashboardUser(): string {
+  const v = (process.env.DASHBOARD_USER ?? "").trim();
+  if (v.toLowerCase() === "admin") {
+    throw new Error('DASHBOARD_USER must not be "admin"');
+  }
+  if (v) return v;
+  if ((process.env.NODE_ENV ?? "development") === "production") {
+    throw new Error("Missing required environment variable DASHBOARD_USER");
+  }
+  return "operator";
+}
+
 function int(key: string, fallback: number): number {
   const v = process.env[key];
   if (v === undefined || v === "") return fallback;
@@ -75,7 +88,7 @@ export const env = {
   },
 
   dashboard: {
-    user: opt("DASHBOARD_USER", "admin"),
+    user: dashboardUser(),
     password: opt("DASHBOARD_PASSWORD"),
     sessionSecret: opt("SESSION_SECRET") || randomBytes(32).toString("hex"),
   },

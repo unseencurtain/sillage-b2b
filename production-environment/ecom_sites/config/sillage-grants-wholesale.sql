@@ -1,5 +1,6 @@
 -- Grants for the wholesale MariaDB (container wholesale-db). Not ecom-db.
--- Placeholders: __SILLAGE_DB_PASSWORD__  __MYSQL_USER__
+-- Placeholders: __SILLAGE_DB_PASSWORD__
+-- WP app user is lime (created by MYSQL_USER). Engine user is sillage.
 -- Databases: earth_wpf (WooCommerce), sillage_wpf (engine).
 -- WPF in the schema names is the vendor SKU prefix leftover; containers are wholesale-*.
 
@@ -11,7 +12,7 @@ CREATE DATABASE IF NOT EXISTS sillage_wpf
 CREATE USER IF NOT EXISTS 'sillage'@'%' IDENTIFIED BY '__SILLAGE_DB_PASSWORD__';
 ALTER USER 'sillage'@'%' IDENTIFIED BY '__SILLAGE_DB_PASSWORD__';
 
-GRANT ALL PRIVILEGES ON earth_wpf.* TO '__MYSQL_USER__'@'%';
+GRANT ALL PRIVILEGES ON earth_wpf.* TO 'lime'@'%';
 GRANT ALL PRIVILEGES ON sillage_wpf.* TO 'sillage'@'%';
 GRANT ALL PRIVILEGES ON earth_wpf.* TO 'sillage'@'%';
 

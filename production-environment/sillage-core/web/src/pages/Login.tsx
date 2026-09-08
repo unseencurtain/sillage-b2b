@@ -4,7 +4,7 @@ import { api } from "@/lib/api";
 
 export function Login() {
   const navigate = useNavigate();
-  const [user, setUser] = useState("admin");
+  const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,6 +36,7 @@ export function Login() {
             value={user}
             onChange={(e) => setUser(e.target.value)}
             autoComplete="username"
+            placeholder="Username"
           />
         </label>
         <label className="mt-3 block text-sm">

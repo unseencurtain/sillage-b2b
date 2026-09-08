@@ -1,35 +1,50 @@
 <?php
 /**
- * First boot on an empty VPS. Copied into the WordPress container and run with php.
+ * First boot inside the WordPress image. Plugins and Blocksy are already in the image.
  *
- * Installs the site if needed, activates WooCommerce + redis-cache + sillage-bridge,
- * turns on HPOS (orders in wp_wc_orders), EUR, pretty permalinks, and turns off
- * WooCommerce "Coming soon". Catalogue sync works without this; order dispatch does not.
+ * Installs the site if needed, activates WooCommerce + redis-cache + sillage-bridge
+ * + Blocksy companion, turns on HPOS, EUR, pretty permalinks, Coming soon off.
+ *
+ * WP_ADMIN_USER must be set and must not be "admin".
  */
 define('WP_INSTALLING', true);
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 
-$_SERVER['HTTP_HOST'] = getenv('SHOP_DOMAIN') ?: 'localhost';
-$_SERVER['SERVER_NAME'] = $_SERVER['HTTP_HOST'];
+$shopDomain = getenv('SHOP_DOMAIN') ?: 'localhost';
+$_SERVER['HTTP_HOST'] = $shopDomain;
+$_SERVER['SERVER_NAME'] = $shopDomain;
 $_SERVER['REQUEST_URI'] = '/';
 
 require '/var/www/html/wp-load.php';
 require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 require_once ABSPATH . 'wp-admin/includes/plugin.php';
 
-$url = 'https://' . $_SERVER['HTTP_HOST'];
+$base = getenv('WP_BASE_URL') ?: '';
+$base = rtrim($base, '/');
+if ($base === '') {
+    $scheme = getenv('WP_HOME_SCHEME') ?: 'https';
+    $base = $scheme . '://' . $shopDomain;
+}
+
+$wpUser = trim((string) getenv('WP_ADMIN_USER'));
+if ($wpUser === '' || strcasecmp($wpUser, 'admin') === 0) {
+    fwrite(STDERR, "WP_ADMIN_USER must be set and must not be admin\n");
+    exit(1);
+}
+
 echo 'installed=' . (is_blog_installed() ? 'yes' : 'no') . PHP_EOL;
 
 if (!is_blog_installed()) {
     $pass = getenv('WP_ADMIN_PASS') ?: wp_generate_password(20, false);
     $title = getenv('SHOP_TITLE') ?: 'Shop';
-    $r = wp_install($title, 'admin', 'admin@' . $_SERVER['HTTP_HOST'], true, '', $pass, 'en_US');
-    echo 'wp_install_ok user=' . ($r['user_id'] ?? '?') . PHP_EOL;
+    $email = getenv('WP_ADMIN_EMAIL') ?: ($wpUser . '@' . $shopDomain);
+    $r = wp_install($title, $wpUser, $email, true, '', $pass, 'en_US');
+    echo 'wp_install_ok user=' . ($r['user_id'] ?? '?') . ' login=' . $wpUser . PHP_EOL;
 }
 
-update_option('siteurl', $url);
-update_option('home', $url);
+update_option('siteurl', $base);
+update_option('home', $base);
 update_option('woocommerce_currency', 'EUR');
 update_option('permalink_structure', '/%postname%/');
 update_option('woocommerce_coming_soon', 'no');
@@ -39,6 +54,7 @@ foreach (array(
     'woocommerce/woocommerce.php',
     'redis-cache/redis-cache.php',
     'sillage-bridge/sillage-bridge.php',
+    'blocksy-companion/blocksy-companion.php',
 ) as $p) {
     if (!file_exists(WP_PLUGIN_DIR . '/' . $p)) {
         echo "$p missing\n";
@@ -53,7 +69,6 @@ if (function_exists('wp_get_theme') && wp_get_theme('blocksy')->exists()) {
     echo "theme=blocksy\n";
 }
 
-// HPOS — WooCommerce 8+/11. Empty VPS must match live: wp_wc_orders, not shop_order posts.
 update_option('woocommerce_custom_orders_table_enabled', 'yes');
 update_option('woocommerce_custom_orders_table_data_sync_enabled', 'no');
 update_option('woocommerce_feature_custom_order_tables_enabled', 'yes');
@@ -69,6 +84,29 @@ if (class_exists(\Automattic\WooCommerce\Internal\Features\FeaturesController::c
 }
 
 flush_rewrite_rules(false);
+
+$secret = getenv('SILLAGE_SHARED_SECRET') ?: '';
+$dash = getenv('SILLAGE_DASHBOARD_URL') ?: '';
+$core = getenv('SILLAGE_CORE_INTERNAL_URL') ?: 'http://wholesale-core:4000';
+$sillageDb = getenv('SILLAGE_DB') ?: 'sillage';
+if ($secret !== '' && defined('ABSPATH')) {
+    $wp = ABSPATH . 'wp-config.php';
+    if (is_readable($wp)) {
+        $text = file_get_contents($wp);
+        if ($text !== false && strpos($text, "SILLAGE_SHARED_SECRET") === false) {
+            $block = "\n/* Sillage bridge */\n"
+                . "define( 'SILLAGE_SHARED_SECRET', '" . addcslashes($secret, "'\\") . "' );\n"
+                . "define( 'SILLAGE_CORE_URL', '" . addcslashes($core, "'\\") . "' );\n"
+                . "define( 'SILLAGE_DASHBOARD_URL', '" . addcslashes($dash, "'\\") . "' );\n"
+                . "define( 'SILLAGE_DB', '" . addcslashes($sillageDb, "'\\") . "' );\n"
+                . "define( 'DISABLE_WP_CRON', true );\n";
+            $marker = "/* That's all, stop editing!";
+            $text = strpos($text, $marker) !== false ? str_replace($marker, $block . $marker, $text) : ($text . $block);
+            file_put_contents($wp, $text);
+            echo "wp_config_sillage_patched\n";
+        }
+    }
+}
 
 echo 'siteurl=' . get_option('siteurl') . PHP_EOL;
 echo 'hpos=' . get_option('woocommerce_custom_orders_table_enabled') . PHP_EOL;
