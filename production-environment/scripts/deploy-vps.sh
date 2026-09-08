@@ -277,13 +277,14 @@ if [[ "$WITH_WORDPRESS" -eq 1 ]]; then
 fi
 
 echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
-"${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/ecom_sites/config ~/${REMOTE_DIR}/sillage-core/data ~/${REMOTE_DIR}/sillage-core/logs ~/ecom_sites/data/wp-wholesale/wp-content/plugins ~/ecom_sites/data/sitemaps ~/ecom_sites/data/wholesale-db ~/${REMOTE_DIR}/.feedscratch ~/${REMOTE_DIR}/scripts"
+"${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/ecom_sites/config ~/${REMOTE_DIR}/sillage-core/data ~/${REMOTE_DIR}/sillage-core/logs ~/${REMOTE_DIR}/wp-staging ~/ecom_sites/data/sitemaps ~/${REMOTE_DIR}/.feedscratch ~/${REMOTE_DIR}/scripts"
 
 "${RSYNC[@]}" "$PE/compose.yaml" "$HOST:~/${REMOTE_DIR}/compose.yaml"
 "${RSYNC[@]}" "$PE/.env.example" "$HOST:~/${REMOTE_DIR}/.env.example"
 "${RSYNC[@]}" --delete \
   "$PE/ecom_sites/config/" "$HOST:~/${REMOTE_DIR}/ecom_sites/config/"
 "${RSYNC[@]}" "$PE/scripts/vps-bootstrap.sh" "$HOST:~/${REMOTE_DIR}/scripts/vps-bootstrap.sh"
+"${RSYNC[@]}" "$PE/scripts/wp-config-patch.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-config-patch.php"
 "${RSYNC[@]}" "$PE/scripts/build-push-images.sh" "$HOST:~/${REMOTE_DIR}/scripts/build-push-images.sh"
 "${RSYNC[@]}" "$PE/scripts/fix-wp-content-perms.sh" "$HOST:~/${REMOTE_DIR}/scripts/fix-wp-content-perms.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-fresh-install.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-fresh-install.php"
@@ -296,22 +297,16 @@ elif [[ -f "$PE/sillage-core/data/image_overrides.json" ]]; then
 fi
 "${RSYNC[@]}" --delete \
   "$PE/ecom_sites/data/wp/wp-content/plugins/sillage-bridge/" \
-  "$HOST:~/ecom_sites/data/wp-wholesale/wp-content/plugins/sillage-bridge/"
+  "$HOST:~/${REMOTE_DIR}/wp-staging/sillage-bridge/"
 # Keep a zero-byte php.ini if missing so the bind mount succeeds.
-"${SSH[@]}" "$HOST" "touch ~/${REMOTE_DIR}/ecom_sites/config/php.ini; mkdir -p ~/ecom_sites/data/sitemaps ~/ecom_sites/data/wp-wholesale ~/ecom_sites/data/wholesale-db; touch ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env; [[ -f ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json ]] || echo '{}' > ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json; chmod 600 ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env"
+"${SSH[@]}" "$HOST" "touch ~/${REMOTE_DIR}/ecom_sites/config/php.ini; mkdir -p ~/ecom_sites/data/sitemaps; touch ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env; [[ -f ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json ]] || echo '{}' > ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json; chmod 600 ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env"
 log_step "Minimal rsync done"
 
 if [[ -n "$CLONE_FROM" ]]; then
-  echo "==> clone WordPress+DB from ${CLONE_FROM} → ${HOST}"
-  "${SSH[@]}" "$HOST" 'mkdir -p ~/ecom_sites/data/wp-wholesale ~/ecom_sites/data/wholesale-db'
-  "${SSH[@]}" "$CLONE_FROM" 'tar -C ~/ecom_sites/data/wp --exclude=wp-content/cache -cf - .' \
-    | "${SSH[@]}" "$HOST" 'tar -C ~/ecom_sites/data/wp -xf -'
-  "${SSH[@]}" "$CLONE_FROM" 'set -a; source ~/sillage/.env 2>/dev/null || source ~/ecom_sites/.env; set +a; docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb-dump -uroot --single-transaction --routines --triggers --all-databases' \
-    | "${SSH[@]}" "$HOST" 'cat > /tmp/sillage-clone.sql'
-  "${RSYNC[@]}" --delete \
-    "$PE/ecom_sites/data/wp/wp-content/plugins/sillage-bridge/" \
-    "$HOST:~/ecom_sites/data/wp-wholesale/wp-content/plugins/sillage-bridge/"
-  log_step "Cloned wp + SQL from ${CLONE_FROM}"
+  echo "--clone-from is no longer supported: WordPress and MariaDB live in Docker volumes," >&2
+  echo "and cloning a live shop's datadir is what let core drift from its image." >&2
+  echo "Deploy a fresh install and let the operator set the theme up." >&2
+  exit 1
 fi
 
 echo "==> ensure remote .env"
@@ -565,7 +560,7 @@ if [[ -f "$HOME/ecom_sites/compose.yaml" ]]; then
   (cd "$HOME/ecom_sites" && docker compose down 2>/dev/null) || true
 fi
 
-mkdir -p "$DATA_DIR/wp-wholesale" "$DATA_DIR/wholesale-db" "$DATA_DIR/sitemaps" \
+mkdir -p "$DATA_DIR/sitemaps" \
   "$APP_DIR/sillage-core/logs" "$APP_DIR/.feedscratch"
 # Ensure image overrides + secrets overlay files exist for bind mounts (file, not directory).
 [[ -f "$APP_DIR/sillage-core/data/image_overrides.wpf.json" ]] \
@@ -592,44 +587,56 @@ fi
 
 docker compose --env-file .env up -d
 
+# WordPress lives in a Docker volume, so every check and edit goes through the container. The
+# host has no business holding WordPress core: that is how a datadir drifted to a newer version
+# than the image it booted from.
+wp_has_config() { docker exec wholesale-ecom test -f /var/www/html/wp-config.php 2>/dev/null; }
+wp_chown() { docker exec wholesale-ecom chown -R www-data:www-data /var/www/html/wp-content 2>/dev/null || true; }
+
 echo "Waiting for WordPress files..."
 for i in $(seq 1 90); do
-  if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
-    break
-  fi
+  wp_has_config && break
   sleep 2
 done
 
-NEED_FRESH=0
-if [[ ! -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
-  NEED_FRESH=1
+# The bridge plugin ships on every deploy, into the volume rather than a host wp-content.
+if [[ -d "$APP_DIR/wp-staging/sillage-bridge" ]]; then
+  docker exec wholesale-ecom rm -rf /var/www/html/wp-content/plugins/sillage-bridge
+  docker cp "$APP_DIR/wp-staging/sillage-bridge" wholesale-ecom:/var/www/html/wp-content/plugins/
+  wp_chown
+  echo "sillage-bridge copied into the WordPress volume"
 fi
+
+NEED_FRESH=0
+wp_has_config || NEED_FRESH=1
 if [[ -z "${CLONE_MODE:-}" && ( "$NEED_FRESH" -eq 1 || "${FRESH:-0}" == "1" ) ]]; then
   echo "Fetching WooCommerce / redis-cache / Blocksy from wordpress.org..."
-  sudo chown -R "$USER":"$USER" "$DATA_DIR/wp-wholesale/wp-content" 2>/dev/null || true
-  mkdir -p "$DATA_DIR/wp-wholesale/wp-content/plugins" "$DATA_DIR/wp-wholesale/wp-content/themes"
-  cd /tmp
+  STAGE="$(mktemp -d)"
   for item in "plugin:woocommerce" "plugin:redis-cache" "theme:blocksy"; do
-    kind=${item%%:*}; slug=${item##*:}
-    dest="$DATA_DIR/wp-wholesale/wp-content/${kind}s/${slug}"
-    if [[ -d "$dest" ]]; then
+    kind=${item%:*}; slug=${item##*:}
+    if docker exec wholesale-ecom test -d "/var/www/html/wp-content/${kind}s/${slug}"; then
       echo "  $slug already present"
       continue
     fi
-    curl -fsSL -o "${slug}.zip" "https://downloads.wordpress.org/${kind}/${slug}.latest-stable.zip"
-    unzip -qo "${slug}.zip" -d "$DATA_DIR/wp-wholesale/wp-content/${kind}s"
-    rm -f "${slug}.zip"
+    curl -fsSL -o "$STAGE/${slug}.zip" "https://downloads.wordpress.org/${kind}/${slug}.latest-stable.zip"
+    unzip -qo "$STAGE/${slug}.zip" -d "$STAGE"
+    docker cp "$STAGE/${slug}" wholesale-ecom:/var/www/html/wp-content/${kind}s/
+    rm -rf "$STAGE/${slug}" "$STAGE/${slug}.zip"
+    echo "  $slug installed"
   done
+  rm -rf "$STAGE"
+  wp_chown
 
   # Wait again for wp-config from the official image entrypoint
   for i in $(seq 1 60); do
-    [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]] && break
+    wp_has_config && break
     sleep 2
   done
 
-  if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
+  if wp_has_config; then
     if [[ -f "$APP_DIR/ecom_sites/config/wordpress.htaccess" ]]; then
-      cp "$APP_DIR/ecom_sites/config/wordpress.htaccess" "$DATA_DIR/wp-wholesale/.htaccess"
+      docker cp "$APP_DIR/ecom_sites/config/wordpress.htaccess" wholesale-ecom:/var/www/html/.htaccess
+      docker exec wholesale-ecom chown www-data:www-data /var/www/html/.htaccess || true
     fi
     INSTALL_PHP="$APP_DIR/scripts/wp-fresh-install.php"
     if [[ ! -f "$INSTALL_PHP" ]]; then
@@ -646,23 +653,11 @@ if [[ -z "${CLONE_MODE:-}" && ( "$NEED_FRESH" -eq 1 || "${FRESH:-0}" == "1" ) ]]
 fi
 
 export SILLAGE_DASHBOARD_URL="https://${DASH_DOMAIN}"
-if [[ -f "$APP_DIR/scripts/fix-wp-content-perms.sh" ]]; then
-  bash "$APP_DIR/scripts/fix-wp-content-perms.sh" --dir "$DATA_DIR/wp-wholesale" || true
-fi
-if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
-  sudo chown "$USER":"$USER" "$DATA_DIR/wp-wholesale/wp-config.php" || true
-  sudo chmod 664 "$DATA_DIR/wp-wholesale/wp-config.php" || true
-  # Point bootstrap at unified env
+wp_chown
+if wp_has_config; then
+  # Creates the sillage DB user and grants, then patches wp-config inside the container:
+  # the bridge constants, DISABLE_WP_CRON, and FS_METHOD for wp-admin plugin uploads.
   bash "$APP_DIR/scripts/vps-bootstrap.sh"
-  WP="$DATA_DIR/wp-wholesale/wp-config.php"
-  grep -q DISABLE_WP_CRON "$WP" || python3 - <<PY
-from pathlib import Path
-p = Path("$WP")
-t = p.read_text()
-b = "\\ndefine( 'DISABLE_WP_CRON', true );\\n"
-m = "/* That's all, stop editing!"
-p.write_text(t.replace(m, b+m) if m in t else t+b)
-PY
 fi
 
 if [[ -n "${CLONE_MODE:-}" ]]; then

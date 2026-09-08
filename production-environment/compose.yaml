@@ -52,7 +52,10 @@ services:
     ports:
       - "${DB_BIND:-127.0.0.1}:${DB_HOST_PORT:-3308}:3306"
     volumes:
-      - ${DATA_DIR:-./ecom_sites/data}/wholesale-db:/var/lib/mysql
+      # Raw InnoDB files. Nothing on the host may read or write them, so they live in a Docker
+      # volume rather than a host directory. Set WP_DB_DATA to a path to bind-mount for
+      # development.
+      - ${WP_DB_DATA:-wholesale_db}:/var/lib/mysql
       - ${MARIADB_CNF:-./ecom_sites/config/mariadb.wholesale.cnf}:/etc/mysql/conf.d/sillage.cnf:ro
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PWD}
@@ -88,7 +91,11 @@ services:
       wholesale-db:
         condition: service_healthy
     volumes:
-      - ${DATA_DIR:-./ecom_sites/data}/wp-wholesale:/var/www/html
+      # WordPress core comes from the image, and wp-content (the operator's uploaded plugins
+      # and themes) persists in the volume. Keeping core on the host is what let a datadir
+      # drift to a newer WordPress than the image it ran from. Set WP_DATA to a path to
+      # bind-mount for development.
+      - ${WP_DATA:-wholesale_wp_html}:/var/www/html
       - ${PHP_INI:-./ecom_sites/config/php.ini}:/usr/local/etc/php/conf.d/conf.ini:ro
       - ${APACHE_HIDE_CONF:-./ecom_sites/config/apache-hide-version.conf}:/etc/apache2/conf-enabled/z-hide-version.conf:ro
     environment:
@@ -153,3 +160,12 @@ networks:
   redis_network:
     name: redis_network
     external: true
+
+# Only state that no host tool may touch. Sitemaps and the config files stay on the host,
+# because host processes genuinely take part: the host's Caddy serves the sitemap files.
+# Wholesale has no media directory — its product images are remote vendor URLs.
+volumes:
+  wholesale_db:
+    name: ${WP_DB_VOLUME:-wholesale_db}
+  wholesale_wp_html:
+    name: ${WP_VOLUME:-wholesale_wp_html}
