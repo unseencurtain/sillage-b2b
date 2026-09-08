@@ -8,6 +8,8 @@ never spends).
 
 Live: shop https://wholesale.mirainikki.xyz · dashboard https://sillage-wholesale.mirainikki.xyz
 
+Dashboard username and password come from the operator creds file on the VPS. The username is never `admin`.
+
 ---
 
 ## 1. First login
