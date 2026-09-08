@@ -84,7 +84,12 @@ export async function writeProductSitemaps(opts?: {
     if (p.lastmod > newest) newest = p.lastmod;
   }
   if (!newest) newest = new Date().toISOString().slice(0, 10);
-  const tmp = `${dir}.tmp-${process.pid}`;
+  // Stage inside `dir`, not beside it. `dir` is a bind mount in production, so a sibling
+  // `<dir>.tmp` lands on the container's own overlay filesystem and every rename out of it
+  // crosses a device boundary — EXDEV, and not one sitemap gets written. A dotted child of the
+  // mount is on the same filesystem, which is what makes the renames below both legal and atomic.
+  const tmp = join(dir, `.tmp-${process.pid}`);
+  await mkdir(dir, { recursive: true });
   await rm(tmp, { recursive: true, force: true });
   await mkdir(tmp, { recursive: true });
   await writeFile(join(tmp, "robots.txt"), renderRobots(base), "utf8");
@@ -100,22 +105,24 @@ export async function writeProductSitemaps(opts?: {
       );
     }
   }
-  // Swap the files, not the directory. `dir` is a bind mount in production, and unlinking a
-  // mount point fails with EBUSY, which silently left every sitemap URL a 404 while the shop
-  // itself looked fine. Renaming file-by-file inside the mount is still atomic per file.
-  await mkdir(dir, { recursive: true });
+  // Swap the files, not the directory. Unlinking a mount point fails with EBUSY, which silently
+  // left every sitemap URL a 404 while the shop itself looked fine. Renaming file-by-file inside
+  // the mount is still atomic per file.
   const names = await readdir(tmp);
   // Pages first, then the index that references them, so a crawler never reads an index
   // pointing at a page that has not landed yet.
   for (const name of [...names].sort((a, b) => Number(a === "wp-sitemap.xml") - Number(b === "wp-sitemap.xml"))) {
     await rename(join(tmp, name), join(dir, name));
   }
-  // Drop pages left over from a larger catalogue; the index no longer references them.
+  await rm(tmp, { recursive: true, force: true });
   for (const name of await readdir(dir)) {
+    // Drop pages left over from a larger catalogue; the index no longer references them.
     const page = /^wp-sitemap-posts-product-(\d+)\.xml$/.exec(name);
     if (page && Number(page[1]) > pageCount) await rm(join(dir, name), { force: true });
+    // And any staging directory a killed run left inside the mount. The OOM killer has ended a
+    // sync mid-write on this box before, and staging in here means that now leaves litter.
+    if (name.startsWith(".tmp-")) await rm(join(dir, name), { recursive: true, force: true });
   }
-  await rm(tmp, { recursive: true, force: true });
   log.info(`wrote ${products.length} URLs in ${pageCount} sitemap page(s) → ${dir}`);
   return { urls: products.length, pages: pageCount, dir };
 }

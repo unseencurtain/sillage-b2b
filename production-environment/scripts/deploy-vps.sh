@@ -182,10 +182,21 @@ if [[ "$FINISH" -eq 1 ]]; then
   "${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/scripts"
   "${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
   "${RSYNC[@]}" "$PE/scripts/apply-grants.sh" "$HOST:~/${REMOTE_DIR}/scripts/apply-grants.sh"
+  "${RSYNC[@]}" "$PE/scripts/wp-finalize.sh" "$HOST:~/${REMOTE_DIR}/scripts/wp-finalize.sh"
+  # Readiness first, grants second. Readiness is what asks WooCommerce to build the HPOS order
+  # tables, and a table-level grant cannot be applied to a table that does not exist yet — run
+  # them the other way round and --strict fails on the four order tables that readiness was
+  # about to create.
+  "${SSH[@]}" "$HOST" "docker cp ~/${REMOTE_DIR}/scripts/wp-readiness.php wholesale-ecom:/tmp/wp-readiness.php >/dev/null && docker exec -e SHOP_DOMAIN='${SHOP_DOMAIN}' -e WP_READINESS_FIX=1 wholesale-ecom php /tmp/wp-readiness.php"
+  READY_RC=$?
+  echo
   "${SSH[@]}" "$HOST" "cd ~/${REMOTE_DIR} && bash scripts/apply-grants.sh --strict" || exit $?
   echo
-  "${SSH[@]}" "$HOST" "docker cp ~/${REMOTE_DIR}/scripts/wp-readiness.php wholesale-ecom:/tmp/wp-readiness.php >/dev/null && docker exec -e SHOP_DOMAIN='${SHOP_DOMAIN}' -e WP_READINESS_FIX=1 wholesale-ecom php /tmp/wp-readiness.php"
-  exit $?
+  # An import that ran while the bridge was inactive is already committed but invisible: object
+  # caching holds WordPress's post counts with no expiry. This is the stage right after the
+  # operator activates plugins, so it is exactly where that gets cleared.
+  "${SSH[@]}" "$HOST" "cd ~/${REMOTE_DIR} && bash scripts/wp-finalize.sh" || exit $?
+  exit "$READY_RC"
 fi
 
 DASH_DOMAIN="$(pick_domain "$CLI_DASH" "$_R_DASH" "$LOCAL_DASH" "$DEFAULT_DASH_DOMAIN")"

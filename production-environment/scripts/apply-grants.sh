@@ -71,7 +71,7 @@ while read -r qualified user; do
   if grep -qxF "$qualified $user" <<<"$held"; then
     printf 'ok      %-42s %s\n' "$qualified" "$user"
   elif [[ "$qualified" != *".*" ]] && ! grep -qxF "$qualified" <<<"$tables"; then
-    printf 'pending %-42s %s  table does not exist yet — activate WooCommerce\n' "$qualified" "$user"
+    printf 'pending %-42s %s  no such table yet — activate WooCommerce, then deploy --finish\n' "$qualified" "$user"
     pending=$((pending + 1))
   else
     printf 'MISSING %-42s %s  table exists but the grant did not apply\n' "$qualified" "$user"
@@ -88,7 +88,7 @@ fi
 
 if [[ "$pending" -gt 0 ]]; then
   echo
-  echo "grants applied; ${pending} pending until WooCommerce is activated"
+  echo "grants applied; ${pending} pending until the tables exist (deploy --finish creates them)"
 else
   echo
   echo "grants ok"
