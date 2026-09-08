@@ -7,7 +7,7 @@
 #   #   shop=wholesale.mirainikki.xyz dash=sillage-wholesale.mirainikki.xyz
 #   ./production-environment/scripts/deploy-vps.sh \
 #       --host ovhe \
-#       [--shop …] [--dash …] \
+#       [--shop …] [--dash …] [--skip-dns-check] \
 #       [--dns] [--ip 139.99.61.71] \
 #       [--skip-build] [--fresh] [--core-only] [--keep-caddy] [--replace-caddy]
 #
@@ -40,6 +40,7 @@ FRESH=0
 CLONE_FROM=""
 WITH_WORDPRESS=1
 KEEP_CADDY=""
+SKIP_DNS_CHECK=0
 
 usage() {
   sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'
@@ -53,6 +54,7 @@ while [[ $# -gt 0 ]]; do
     --dash) DASH_DOMAIN="${2:?}"; shift 2 ;;
     --images) IMAGES_DOMAIN="${2:?}"; shift 2 ;;
     --dns) DO_DNS=1; shift ;;
+    --skip-dns-check) SKIP_DNS_CHECK=1; shift ;;
     --ip) IP="${2:?}"; shift 2 ;;
     --skip-build) SKIP_BUILD=1; shift ;;
     --fresh) FRESH=1; shift ;;
@@ -170,6 +172,48 @@ if [[ "$DO_DNS" -eq 1 ]]; then
   log_step "DNS A records updated"
 fi
 
+# Check the names before spending twenty minutes on a stack that cannot get a certificate.
+# Every DNS panel's host field appends the zone, so a pasted FQDN silently becomes
+# wholesale.example.com.example.com: the doubled name resolves, the real one NXDOMAINs, and
+# the only symptom is a browser connection failure once Let's Encrypt refuses to issue.
+dns_of() {
+  local name="$1"
+  if command -v dig >/dev/null 2>&1; then
+    dig +short +time=3 +tries=2 "$name" A 2>/dev/null | grep -E '^[0-9.]+$' | head -1
+  else
+    getent ahostsv4 "$name" 2>/dev/null | awk '{print $1; exit}'
+  fi
+}
+
+if [[ "$SKIP_DNS_CHECK" -eq 0 ]]; then
+  dns_bad=()
+  for name in "$SHOP_DOMAIN" "$DASH_DOMAIN"; do
+    got="$(dns_of "$name")"
+    [[ "$got" != "$IP" ]] && dns_bad+=("$name|${got:-NXDOMAIN}")
+  done
+  if [[ "${#dns_bad[@]}" -gt 0 ]]; then
+    echo >&2
+    echo "DNS is not ready for ${HOST} (${IP}):" >&2
+    for entry in "${dns_bad[@]}"; do
+      printf '  %-40s resolves to %s\n' "${entry%%|*}" "${entry##*|}" >&2
+    done
+    echo >&2
+    echo "Add an A record per name. Enter the LABEL only — the panel appends the zone," >&2
+    echo "so pasting the full name creates sub.domain.tld.domain.tld:" >&2
+    zone="${SHOP_DOMAIN#*.}"
+    for entry in "${dns_bad[@]}"; do
+      name="${entry%%|*}"
+      label="${name%".$zone"}"
+      [[ "$label" == "$name" ]] && label="@"
+      printf '  HOST %-22s TYPE A   VALUE %s\n' "$label" "$IP" >&2
+    done
+    echo >&2
+    echo "Then re-run. Pass --skip-dns-check to deploy anyway (HTTPS will not work)." >&2
+    exit 1
+  fi
+  log_step "DNS verified for shop/dash → ${IP}"
+fi
+
 TAG="$(git -C "$ROOT" rev-parse --short HEAD)"
 NAMESPACE="${DOCKERHUB_NAMESPACE:-}"
 if [[ -z "$NAMESPACE" ]]; then
@@ -207,6 +251,29 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   log_step "Pushed Hub images from ${HOST}"
 else
   log_step "Skipped image build; using ${CORE_IMAGE} ${WP_IMAGE}"
+fi
+
+# A Hub tag says nothing about the WordPress it carries: an old build can sit under a tag
+# whose live datadir was upgraded in place afterwards, so the running shop reads newer than
+# the image. Deploying it onto an empty VPS installs the old WordPress. Compare the bundled
+# version against the Dockerfile pin before anything writes a datadir.
+if [[ "$WITH_WORDPRESS" -eq 1 ]]; then
+  PIN_WP="$(sed -n 's/^FROM wordpress:\([0-9][0-9.]*\)-php.*/\1/p' "$PE/wordpress-image/Dockerfile" | head -1)"
+  if [[ -z "$PIN_WP" ]]; then
+    echo "Could not read the WordPress pin from wordpress-image/Dockerfile" >&2
+    exit 1
+  fi
+  IMAGE_WP="$("${SSH[@]}" "$HOST" "docker pull -q '$WP_IMAGE' >/dev/null 2>&1 && docker run --rm --entrypoint php '$WP_IMAGE' -r 'include \"/usr/src/wordpress/wp-includes/version.php\"; echo \$wp_version;'" 2>/dev/null || true)"
+  if [[ -z "$IMAGE_WP" ]]; then
+    echo "Could not read WordPress version from ${WP_IMAGE} (missing on Hub?)" >&2
+    exit 1
+  fi
+  if [[ "$IMAGE_WP" != "$PIN_WP" ]]; then
+    echo "${WP_IMAGE} bundles WordPress ${IMAGE_WP}, Dockerfile pins ${PIN_WP}." >&2
+    echo "Rebuild that tag (drop --skip-build) instead of shipping a stale image." >&2
+    exit 1
+  fi
+  log_step "WordPress image carries ${IMAGE_WP} (matches pin)"
 fi
 
 echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
@@ -631,6 +698,21 @@ docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
 docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
   -e "GRANT SELECT ON sillage_wpf.sil_ean_index TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_settings TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_vendors TO 'lime'@'%'; FLUSH PRIVILEGES;" || true
 docker exec wholesale-ecom php -r 'require "/var/www/html/wp-load.php"; require_once ABSPATH."wp-admin/includes/plugin.php"; activate_plugin("sillage-bridge/sillage-bridge.php"); echo "plugin ok\n";' || true
+
+# The live box was hand-tuned with swap that no script created, so a rebuilt VPS OOM-killed
+# the first import instead of finishing it. The WPF full sync alone peaks near 2 GB.
+if ! swapon --show | grep -q '^/swapfile'; then
+  echo "==> 4G swapfile (a full sync peaks near 2 GB)"
+  sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+  sudo chmod 600 /swapfile
+  sudo mkswap /swapfile >/dev/null
+  sudo swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo "/swapfile none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null
+  sudo mkdir -p /etc/sysctl.d
+  echo "vm.swappiness=10" | sudo tee /etc/sysctl.d/99-sillage-swap.conf >/dev/null
+  sudo sysctl -p /etc/sysctl.d/99-sillage-swap.conf >/dev/null
+fi
+swapon --show
 
 curl -sS "http://127.0.0.1:${SILLAGE_PORT:-4000}/health" || true
 echo
