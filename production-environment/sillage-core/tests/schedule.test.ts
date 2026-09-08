@@ -102,6 +102,12 @@ describe("schedule decisions", () => {
     expect(d.action).toBe("skip");
   });
 
+  test("Rebuild on a shop that has never synced starts the first import", () => {
+    const d = decide(settings(), timing({ minutesSinceAny: null, fullRunsSinceWindow: 1 }), true);
+    expect(d.action).toBe("full");
+    expect(d.reason).toContain("operator queued the first catalogue import");
+  });
+
   test("an out-of-range hour is clamped rather than rejected", () => {
     expect(normaliseHour(-4)).toBe(0);
     expect(normaliseHour(99)).toBe(23);

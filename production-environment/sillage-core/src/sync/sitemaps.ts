@@ -9,7 +9,7 @@
  * seconds of SQL + disk, zero Apache workers.
  */
 
-import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { env, wp } from "../config/env.ts";
 import { query, type RowDataPacket } from "../db/pool.ts";
@@ -100,9 +100,22 @@ export async function writeProductSitemaps(opts?: {
       );
     }
   }
-  await rm(dir, { recursive: true, force: true });
-  await mkdir(join(dir, ".."), { recursive: true });
-  await rename(tmp, dir);
+  // Swap the files, not the directory. `dir` is a bind mount in production, and unlinking a
+  // mount point fails with EBUSY, which silently left every sitemap URL a 404 while the shop
+  // itself looked fine. Renaming file-by-file inside the mount is still atomic per file.
+  await mkdir(dir, { recursive: true });
+  const names = await readdir(tmp);
+  // Pages first, then the index that references them, so a crawler never reads an index
+  // pointing at a page that has not landed yet.
+  for (const name of [...names].sort((a, b) => Number(a === "wp-sitemap.xml") - Number(b === "wp-sitemap.xml"))) {
+    await rename(join(tmp, name), join(dir, name));
+  }
+  // Drop pages left over from a larger catalogue; the index no longer references them.
+  for (const name of await readdir(dir)) {
+    const page = /^wp-sitemap-posts-product-(\d+)\.xml$/.exec(name);
+    if (page && Number(page[1]) > pageCount) await rm(join(dir, name), { force: true });
+  }
+  await rm(tmp, { recursive: true, force: true });
   log.info(`wrote ${products.length} URLs in ${pageCount} sitemap page(s) → ${dir}`);
   return { urls: products.length, pages: pageCount, dir };
 }

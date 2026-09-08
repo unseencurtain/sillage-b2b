@@ -99,6 +99,12 @@ export function decide(
   // seed on a new VPS competes with WordPress for a small box's memory — the WPF full sync alone
   // peaks near 2 GB. Until one run has succeeded, every tick declines and waits for Start.
   if (since === null) {
+    // Pressing Rebuild is the instruction this gate is waiting for. Without this the two
+    // deadlock: the button parks a flag for the next scheduled call, and every call declines
+    // because nothing has ever succeeded, so the operator has no way to start the first import.
+    if (pendingRebuild) {
+      return { action: "full", reason: "operator queued the first catalogue import" };
+    }
     return {
       action: "skip",
       reason: "no sync has ever succeeded — start the first import from the dashboard",
