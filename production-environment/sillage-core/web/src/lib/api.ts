@@ -211,6 +211,8 @@ export interface Overview {
     hideProductsWithoutImage?: boolean;
     stockThreshold?: number;
   };
+  /** True on the development box, which is a restored copy of the live shop. */
+  devBox?: boolean;
   /** wholesale-perfumes credential readiness (values never returned). */
   secrets?: { ready: boolean; missing: string[] };
 }

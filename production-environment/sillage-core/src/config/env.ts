@@ -43,12 +43,23 @@ const rootDir = resolve(import.meta.dir, "../..");
 
 const lockPrefix = opt("SILLAGE_LOCK_PREFIX") || "sillage-wholesale";
 
+/**
+ * Whether this deployment is the development box.
+ *
+ * The dev box is restored from a production pack, so the two shops are pixel-identical and hold
+ * the same credentials. Dispatch is already a rehearsal everywhere in this storefront
+ * (`resolveDispatchDryRun`), so this only drives the dashboard banner — but a banner is the one
+ * thing that tells an operator which of two identical shops they are about to edit.
+ */
+const devBox = bool("SILLAGE_DEV_BOX", false);
+
 export const env = {
   rootDir,
   /** wholesale-perfumes shop. Retail is unseencurtain/Sillage. */
   sillageProfile: "wholesale" as const,
   /** MariaDB GET_LOCK / IS_USED_LOCK prefix. Must differ per storefront on a shared server. */
   lockPrefix,
+  devBox,
   nodeEnv: opt("NODE_ENV", "development"),
   isProduction: opt("NODE_ENV", "development") === "production",
   logLevel: opt("LOG_LEVEL", "info"),

@@ -1,7 +1,9 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import {
   Boxes,
   ClipboardList,
+  FlaskConical,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -26,6 +28,10 @@ const nav = [
 
 export function Layout() {
   const navigate = useNavigate();
+  // Shares the Overview page's cache entry, so this costs no extra request on the page that
+  // matters and one cheap one everywhere else.
+  const { data } = useQuery({ queryKey: ["overview"], queryFn: api.overview, staleTime: 15_000 });
+  const devBox = data?.devBox === true;
 
   return (
     <div className="flex min-h-screen">
@@ -34,6 +40,17 @@ export function Layout() {
           <div className="text-lg font-semibold tracking-tight text-white">Sillage</div>
           <div className="mt-0.5 text-xs text-white/50">wholesale · sandbox</div>
         </div>
+        {devBox ? (
+          // The dev shop is restored from the live one and carries the same catalogue and
+          // credentials. Something has to say which is which before anyone presses a button.
+          <div className="mx-3 mt-3 flex items-start gap-2 rounded-lg bg-amber-400/15 px-3 py-2 text-xs text-amber-200">
+            <FlaskConical size={14} className="mt-0.5 shrink-0" />
+            <span>
+              <strong className="font-semibold">Development box.</strong> A copy of the live shop —
+              changes here reach no customer.
+            </span>
+          </div>
+        ) : null}
         <nav className="flex-1 space-y-1 p-3">
           {nav.map(({ to, label, icon: Icon, end }) => (
             <NavLink
