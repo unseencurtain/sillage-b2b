@@ -1,26 +1,19 @@
-# Sillage B2B (wholesale-perfumes)
+# Sillage B2B (archive)
 
-Separate GitHub home for the **wholesale-perfumes.eu / SoleLuna** B2B lane.
+**Do not deploy this repo.** Live wholesale is in
+[unseencurtain/Sillage](https://github.com/unseencurtain/Sillage) as a second
+WordPress on the same VPS (`SILLAGE_PROFILE=wholesale`).
 
-The retail LPS shop ([unseencurtain/Sillage](https://github.com/unseencurtain/Sillage)) sells
-**BeautyFort + BTS only**. B2B must not share that WordPress catalogue, `/shop`, or dashboards.
-
-## Layout
-
-| Path | Purpose |
+| | Live |
 |---|---|
-| `docs/wholesale-perfumes-api.md` | Sanitized cart/order API notes (no secrets) |
-| `env/.env.example` | `WHOLESALE_PERFUMES_*` placeholders |
-| `sillage-vendor/` | Extracted connector, order adapter, tests, SQL migrations |
-| This README | Project entry |
+| Shop | https://wholesale.mirainikki.xyz |
+| Dashboard | https://sillage-wholesale.mirainikki.xyz |
+| Spec | [`docs/WHOLESALE-SITE.md`](https://github.com/unseencurtain/Sillage/blob/main/docs/WHOLESALE-SITE.md) in **Sillage** |
+| Vendor | wholesale-perfumes only, €300 MOQ, sandbox dispatch |
 
-## Status
+This tree was an August 2026 extract (`pre-scratch-20260808`) of the
+wholesale-perfumes connector. The vendor code, compose profile, and shop now
+live in Sillage. Cart/order API notes remain under `docs/` here for history.
 
-Scaffold + extracted vendor code. Next: own compose/WordPress/Sillage stack and domain.
-Do not place live orders against wholesale-perfumes from the retail shop (`orders_dry_run` there
-must stay on for BF/BTS testing).
-
-## Provenance
-
-Split from `Sillage` at tag `pre-scratch-20260808` (`31d63de`). Retail tree keeps a thin pointer
-under `b2b-wholesale/` and may still carry a parked copy of the connector until it is removed.
+Retail LPS ([unseencurtain/Sillage](https://github.com/unseencurtain/Sillage))
+still sells BeautyFort + BTS only.
