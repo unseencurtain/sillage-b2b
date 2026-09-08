@@ -189,10 +189,16 @@ export interface Overview {
   /** Shop loop roughly: publish and not `exclude-from-catalog`. */
   catalogVisible: number;
   hiddenFromCatalog: number;
+  /** Every out-of-stock product, including those also missing a photo. Overlaps `hiddenStock`. */
   outOfStock: number;
-  /** Exclusive hide reason: no/weak image (may also be OOS). */
+  /**
+   * Exclusive hide reason: the shop has no photo to print (may also be OOS).
+   *
+   * Counted from the thumbnail the writer actually wrote, not from the vendor's raw image_url — a
+   * non-empty vendor URL is often a placeholder that never reaches the storefront.
+   */
   hiddenNoImage: number;
-  /** Exclusive hide reason: usable image, at/below stock threshold. */
+  /** Exclusive hide reason: has a photo, but at/below the stock threshold. */
   hiddenStock: number;
   hiddenOperator?: number;
   lastSync: SyncRun | null;

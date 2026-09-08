@@ -376,6 +376,7 @@ echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
 # Retail installed a cron for this and then never copied the script, so its log was three lines
 # of "No such file or directory". Copy it before anything schedules it.
 "${RSYNC[@]}" "$PE/scripts/write-sitemaps.py" "$HOST:~/${REMOTE_DIR}/scripts/write-sitemaps.py"
+"${RSYNC[@]}" "$PE/scripts/export-missing-images.py" "$HOST:~/${REMOTE_DIR}/scripts/export-missing-images.py"
 "${RSYNC[@]}" "$PE/scripts/build-push-images.sh" "$HOST:~/${REMOTE_DIR}/scripts/build-push-images.sh"
 "${RSYNC[@]}" "$PE/scripts/fix-wp-content-perms.sh" "$HOST:~/${REMOTE_DIR}/scripts/fix-wp-content-perms.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-fresh-install.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-fresh-install.php"

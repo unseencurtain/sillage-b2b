@@ -41,6 +41,19 @@ Overview · Sync · Products · Vendors · Orders · Secrets · Settings · Logs
 
 Layout subtitle: **wholesale · sandbox**.
 
+Overview's catalogue-visibility hide reasons are exclusive and must add to Hidden: no photo, out of
+stock (has a photo), operator pin. They are counted from `_external_thumbnail_url` — the photo the
+shop prints — not from `sil_offers.image_url`, which is a vendor URL the writer may still have
+rejected. The Out of stock card counts every out-of-stock product, so it is larger than the
+out-of-stock share of Hidden, and the card names that overlap. A tile reading
+`N unattributed — please report this` means the hide-reason query has drifted from what the writer
+does; that is the shape of the retail bug that reported 675 photo-less products against 12,003.
+
+`scripts/export-missing-images.py`, run on the VPS as
+`python3 ~/sillage-wholesale/scripts/export-missing-images.py`, writes
+`~/missing-images-wholesale.csv` from the same column, so its row count equals the sync's
+`hiddenNoImage`. It reads the stack's own `.env`, so it cannot be pointed at retail's databases.
+
 ---
 
 ## Sync / live cooldown

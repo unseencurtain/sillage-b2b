@@ -71,6 +71,13 @@ export function Overview() {
   const hiddenStock = data.hiddenStock ?? 0;
   const hiddenOperator = data.hiddenOperator ?? 0;
   const outOfStock = data.outOfStock ?? 0;
+  // Hide reasons are exclusive — one per product — so they have to account for every hidden
+  // product. Surface any shortfall rather than letting the tiles quietly disagree with their own
+  // total.
+  const unattributedHidden = Math.max(0, hiddenFromCatalog - hiddenNoImage - hiddenStock - hiddenOperator);
+  // Out of stock counts every such product; the hidden breakdown counts a photo-less one under
+  // "no photo" instead. The difference is the overlap, which is worth naming on the tile.
+  const alsoNoPhotoAndOos = Math.max(0, outOfStock - hiddenStock);
   const busy = run.isPending || syncRunning;
   const secretsReady = data.secrets?.ready !== false;
   const missingSecrets = data.secrets?.missing ?? [];
@@ -189,9 +196,16 @@ export function Overview() {
             hint={
               hiddenFromCatalog > 0
                 ? [
-                    hiddenNoImage > 0 ? `${hiddenNoImage.toLocaleString()} no/weak image` : null,
-                    hiddenStock > 0 ? `${hiddenStock.toLocaleString()} out of stock` : null,
+                    hiddenNoImage > 0 ? `${hiddenNoImage.toLocaleString()} no photo` : null,
+                    hiddenStock > 0 ? `${hiddenStock.toLocaleString()} out of stock (has a photo)` : null,
                     hiddenOperator > 0 ? `${hiddenOperator.toLocaleString()} pinned` : null,
+                    // One reason per product, so these must total the tile above. When they do not,
+                    // say so here: a silent shortfall is how a bad hide-reason query survived a
+                    // rebuild on the retail shop, reporting 675 photo-less products out of 12,003
+                    // while 9,129 hidden products sat in no bucket at all.
+                    unattributedHidden > 0
+                      ? `${unattributedHidden.toLocaleString()} unattributed — please report this`
+                      : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")
@@ -201,11 +215,19 @@ export function Overview() {
           <VisibilityStat
             label="Out of stock"
             value={outOfStock}
-            hint={
+            hint={[
+              // Every out-of-stock product, including those also missing a photo — so this is
+              // deliberately larger than the "out of stock" share of Hidden from catalog, which
+              // counts a product once under its first reason.
+              alsoNoPhotoAndOos > 0
+                ? `${alsoNoPhotoAndOos.toLocaleString()} of these also have no photo`
+                : null,
               data.settings.hideProductsWithoutImage
                 ? `Woo outofstock term · hide without image on · threshold ${data.settings.stockThreshold ?? 0}`
-                : `Woo outofstock term · threshold ${data.settings.stockThreshold ?? 0}`
-            }
+                : `Woo outofstock term · threshold ${data.settings.stockThreshold ?? 0}`,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           />
         </div>
         <p className="mt-3 font-mono text-xs tabular-nums text-muted">

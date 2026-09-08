@@ -135,6 +135,17 @@ api.get("/overview", async (c) => {
   // Shop loop ≈ publish AND NOT exclude-from-catalog (same rule as recountTerms).
   // "Published" alone overstates what customers see when hide-without-image / stock
   // threshold attach those visibility terms.
+  //
+  // The hide reasons are counted from `_external_thumbnail_url` — the photo the shop prints — and
+  // not from sil_offers.image_url. A non-empty vendor URL is not a photo: `isUnusableImage` still
+  // rejects placeholders and non-http junk, and the writer resolves overrides and other offers
+  // before deciding. Restating that rule as one SQL predicate is an approximation, and on the retail
+  // shop the same code reported 675 products hidden for a missing photo against a real 12,003,
+  // leaving 9,129 hidden products attributed to no reason at all.
+  //
+  // The thumbnail meta cannot drift like that, because the writer has already applied the rule when
+  // it set the value: a usable URL, or empty. So this is the writer's own verdict read back, and it
+  // agrees exactly with the `hiddenNoImage` a sync run reports.
   const [offerRows, productRows, catalogRows, lastSync, orderRows] = await Promise.all([
     query<RowDataPacket & { offers: number }>(`SELECT COUNT(*) AS offers FROM ${sil("sil_offers")} WHERE vanished_at IS NULL`),
     query<RowDataPacket & { products: number }>(`SELECT COUNT(*) AS products FROM ${sil("sil_products")}`),
@@ -162,19 +173,20 @@ api.get("/overview", async (c) => {
          SUM(CASE
                WHEN cat.object_id IS NOT NULL
                 AND IFNULL(sp.operator_hidden, 0) = 0
-                AND (so.image_url IS NULL OR so.image_url = '') THEN 1
+                AND (thumb.meta_value IS NULL OR TRIM(thumb.meta_value) = '') THEN 1
                ELSE 0
              END) AS hidden_no_image,
          SUM(CASE
                WHEN cat.object_id IS NOT NULL
                 AND IFNULL(sp.operator_hidden, 0) = 0
-                AND so.image_url IS NOT NULL AND so.image_url != ''
+                AND thumb.meta_value IS NOT NULL AND TRIM(thumb.meta_value) != ''
                 AND oos.object_id IS NOT NULL THEN 1
                ELSE 0
              END) AS hidden_stock
        FROM ${wp("posts")} p
        LEFT JOIN ${sil("sil_products")} sp ON sp.wp_post_id = p.ID
-       LEFT JOIN ${sil("sil_offers")} so ON so.id = sp.primary_offer_id
+       LEFT JOIN ${wp("postmeta")} thumb
+              ON thumb.post_id = p.ID AND thumb.meta_key = '_external_thumbnail_url'
        LEFT JOIN (
          SELECT tr.object_id
            FROM ${wp("term_relationships")} tr

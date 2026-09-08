@@ -47,7 +47,13 @@ fields recalculates shop prices from stored offers (no live vendor download).
 **Hide products without image** (default on): empty or placeholder photos are excluded from the shop
 catalogue and search. Stock can still be 1. Products → Shop column shows **Hidden · no image**.
 Photos come from the wholesale-perfumes catalog (`flask_front` URLs). They are not files from
-`~/ecom_sites/data/media` — that folder is the Sillage retail CDN (BTS has no vendor images).
+`~/sillage/data/media` — that folder is the Sillage retail CDN (BTS has no vendor images).
+
+The Overview's **no photo** figure counts the thumbnail the shop would actually print, so it matches
+what a buyer sees rather than how many vendor URLs exist. For the list itself, ask your engineer for
+the missing-photo export: a spreadsheet of EAN, name, brand, price and stock for every product held
+back purely for want of a picture, sorted by stock so the ones an image would publish today come
+first. Send photos back keyed by **EAN**.
 
 **Cart minimum** is an optional small-order fee. Independent of the **€300** wholesale MOQ (Vendors
 → Min order value), which hard-blocks checkout.
