@@ -18,6 +18,11 @@ Dashboard username and password come from the operator creds file on the VPS. Th
 2. **Sync → Rebuild catalogue** — first full import. Catalogue only; never places vendor orders.
 3. Check **Products**. Turn **Sync enabled** on in Settings so the schedule owns price/stock.
 
+**Nothing imports before step 2.** A new shop keeps an empty catalogue on purpose so WordPress
+can be finished first — pages, menus, theme, shipping. Until one import has succeeded the
+schedule declines every check with *no sync has ever succeeded — start the first import from
+the dashboard*. Pressing **Rebuild catalogue** is what starts it.
+
 ---
 
 ## 2. Settings

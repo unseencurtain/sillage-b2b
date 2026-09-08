@@ -19,7 +19,7 @@ Source of truth: `sillage_wpf.sil_settings` / `sil_vendors`. Auth: `DASHBOARD_US
 | Server routes | `src/server/routes/api.ts` |
 | Settings load | `src/db/settings.ts` |
 | Secrets overlay | `src/config/secrets.ts` |
-| Scheduler | `src/sync/schedule.ts` |
+| Scheduler | `src/sync/schedule.ts` — declines every tick until one run has succeeded; the first import is `POST /api/sync/run` `{mode:"full"}` |
 | Orders | `src/orders/{dispatch,rails,tracking,ingest,addresses}.ts` |
 | Shop MOQ | `sillage-bridge` → `class-sillage-cart-fee.php` |
 
