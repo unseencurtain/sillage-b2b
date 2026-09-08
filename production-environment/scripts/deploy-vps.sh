@@ -661,8 +661,20 @@ if [[ -d "$APP_DIR/wp-staging/sillage-bridge" ]]; then
   echo "sillage-bridge copied into the WordPress volume"
 fi
 
+# Whether WordPress needs installing is a question about the *database*, not about wp-config.php.
+# The official image's entrypoint writes wp-config.php on first boot, and the loop above waits for
+# exactly that, so a file test here is always false by the time it is read — which silently skipped
+# the whole install: no WooCommerce, no Blocksy, no admin user, and a shop that answered on :80
+# with the WordPress five-minute install screen.
+wp_installed() {
+  docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot -N \
+    -e "SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_schema='${MYSQL_DB}' AND table_name='${WP_TABLE_PREFIX:-wp_}options';" \
+    </dev/null 2>/dev/null | grep -q '^1$'
+}
+
 NEED_FRESH=0
-wp_has_config || NEED_FRESH=1
+wp_installed || NEED_FRESH=1
 if [[ -z "${CLONE_MODE:-}" && ( "$NEED_FRESH" -eq 1 || "${FRESH:-0}" == "1" ) ]]; then
   echo "Fetching WooCommerce / redis-cache / Blocksy from wordpress.org..."
   STAGE="$(mktemp -d)"
