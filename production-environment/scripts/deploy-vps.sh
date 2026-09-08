@@ -40,7 +40,6 @@ SKIP_BUILD=0
 FRESH=0
 CLONE_FROM=""
 WITH_WORDPRESS=1
-KEEP_CADDY=""
 SKIP_DNS_CHECK=0
 FINISH=0
 DASH_USER=""
@@ -80,8 +79,6 @@ while [[ $# -gt 0 ]]; do
     --fresh) FRESH=1; shift ;;
     --core-only) WITH_WORDPRESS=0; shift ;;
     --with-wordpress) WITH_WORDPRESS=1; shift ;;
-    --keep-caddy) KEEP_CADDY=1; shift ;;
-    --replace-caddy) KEEP_CADDY=0; shift ;;
     --clone-from) CLONE_FROM="${2:?}"; shift 2 ;;
     -h|--help) usage ;;
     *)
@@ -197,7 +194,7 @@ if [[ -n "${CLI_IMAGES}" ]]; then
 fi
 IMAGES_DOMAIN=""
 
-log_step "START host=${HOST} shop=${SHOP_DOMAIN} dash=${DASH_DOMAIN} images=${IMAGES_DOMAIN:-none} skip_build=${SKIP_BUILD} wordpress=${WITH_WORDPRESS} keep_caddy=${KEEP_CADDY:-auto}"
+log_step "START host=${HOST} shop=${SHOP_DOMAIN} dash=${DASH_DOMAIN} images=${IMAGES_DOMAIN:-none} skip_build=${SKIP_BUILD} wordpress=${WITH_WORDPRESS}"
 
 if [[ -z "$IP" ]]; then
   IP=$("${SSH[@]}" "$HOST" 'curl -4 -sS --max-time 5 ifconfig.me || curl -4 -sS --max-time 5 icanhazip.com' | tr -d '[:space:]')
@@ -481,6 +478,9 @@ BRASTY_AVAILABILITY_FEED_URL=${BRASTY_AVAILABILITY_FEED_URL:-}
 
 DASHBOARD_USER=${DASH_USER}
 DASHBOARD_PASSWORD=${PASS}
+WP_ADMIN_USER=${WP_USER}
+WP_ADMIN_PASS=${WP_ADMIN_PASS}
+WP_ADMIN_EMAIL=${WP_USER}@${SHOP_DOMAIN}
 SESSION_SECRET=${SESSION}
 FIXTURES_DIR=/app/.feedscratch
 REDIS_URL=redis://wholesale-valkey:6379
@@ -539,14 +539,21 @@ for k, v in pairs:
 p.write_text(text)
 print("ENV_UPDATED")
 PY
-  # Refresh local creds file password from remote when possible
-  REMOTE_PASS=$("${SSH[@]}" "$HOST" 'set -a; source ~/sillage-wholesale/.env; set +a; printf %s "$DASHBOARD_PASSWORD"')
+  # This rewrites the creds file, so read every credential back from the remote .env — the only
+  # copy that survives the run. The wp-admin login used to be written on the first deploy and
+  # erased by the next one, with the .env not carrying it either, so it was simply lost.
+  read -r REMOTE_USER REMOTE_PASS REMOTE_WP_USER REMOTE_WP_PASS <<<"$(
+    "${SSH[@]}" "$HOST" 'set -a; source ~/sillage-wholesale/.env; set +a; printf "%s %s %s %s" \
+      "$DASHBOARD_USER" "$DASHBOARD_PASSWORD" "${WP_ADMIN_USER:-}" "${WP_ADMIN_PASS:-}"'
+  )"
   cat > "$CREDS" <<EOF
 host=${HOST}
 url=https://${DASH_DOMAIN}
-user=${DASH_USER:-see ~/${REMOTE_DIR}/.env}
+user=${REMOTE_USER}
 password=${REMOTE_PASS}
 shop=https://${SHOP_DOMAIN}
+wp_admin_user=${REMOTE_WP_USER}
+wp_admin_password=${REMOTE_WP_PASS}
 ip=${IP}
 updated=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 EOF
@@ -555,43 +562,54 @@ EOF
 fi
 
 echo "==> remote pull + up"
-"${SSH[@]}" "$HOST" "APP_DIR=\$HOME/${REMOTE_DIR} SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CLONE_MODE='${CLONE_FROM:+1}' FRESH='$FRESH' WP_ADMIN_USER='${WP_USER:-}' WP_ADMIN_PASS='${WP_ADMIN_PASS:-}' KEEP_CADDY='${KEEP_CADDY:-}' bash -s" <<'REMOTE'
+"${SSH[@]}" "$HOST" "APP_DIR=\$HOME/${REMOTE_DIR} SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CLONE_MODE='${CLONE_FROM:+1}' FRESH='$FRESH' WP_ADMIN_USER='${WP_USER:-}' WP_ADMIN_PASS='${WP_ADMIN_PASS:-}' bash -s" <<'REMOTE'
 set -euo pipefail
 cd "$APP_DIR"
 set -a; source .env; set +a
 
-if [[ -f "$HOME/sillage/compose.yaml" ]] && grep -q "container_name: ecom" "$HOME/sillage/compose.yaml"; then
-  if docker ps -a --format "{{.Names}}" | grep -qx wholesale-ecom; then
-    echo "This VPS already runs wholesale-ecom from ~/sillage (combined live stack)." >&2
-    echo "Empty-VPS deploy from sillage-b2b would collide on container names. Cut over first." >&2
-    exit 1
-  fi
+# The real collision is a retail stack whose compose file *defines* the wholesale containers, as
+# the combined live stack does. Testing instead for a running wholesale-ecom made this script
+# refuse to run a second time on its own deployment: the container it had just started looked
+# like someone else's. Ask the file who owns the names, not the daemon who is running them.
+if [[ -f "$HOME/sillage/compose.yaml" ]] && grep -q "container_name: wholesale-" "$HOME/sillage/compose.yaml"; then
+  echo "~/sillage/compose.yaml defines the wholesale containers too (combined live stack)." >&2
+  echo "Deploying from sillage-b2b would collide on those names. Cut that stack over first." >&2
+  exit 1
 fi
 
 WP_PORT="${ECOM_PORT:-106}"
 
-# Empty VPS: write the Caddyfile for this shop. If the box already terminates
-# TLS for other hostnames (shared retail+wholesale), leave it alone.
+# Two stacks share this box, so neither may own /etc/caddy/Caddyfile. Choosing between
+# clobbering retail's hostnames and skipping its own left this shop with no TLS at all while
+# the deploy printed "Deploy finished". Each stack writes one file under /etc/caddy/sites/ and
+# the main file only imports them.
 # Do not add an images.* site — those JPEGs belong to Sillage lps-media.
-if [[ -z "${KEEP_CADDY:-}" && -f /etc/caddy/Caddyfile ]]; then
-  while read -r site; do
-    [[ -z "$site" ]] && continue
-    ours=0
-    for d in ${SHOP_DOMAIN:-} ${DASH_DOMAIN:-}; do
-      [[ "$site" == "$d" ]] && ours=1
-    done
-    if [[ "$ours" -eq 0 ]]; then
-      echo "Caddy already serves $site — leaving /etc/caddy/Caddyfile (pass --replace-caddy to overwrite)"
-      KEEP_CADDY=1
-      break
-    fi
-  done < <(grep -E '^[A-Za-z0-9._-]+\.[A-Za-z0-9.-]+ \{' /etc/caddy/Caddyfile | awk '{print $1}' || true)
+sudo mkdir -p /etc/caddy/sites
+
+if [[ -f /etc/caddy/Caddyfile ]] && ! grep -q 'import /etc/caddy/sites' /etc/caddy/Caddyfile; then
+  sudo mv /etc/caddy/Caddyfile /etc/caddy/sites/legacy.caddy
+  echo "==> moved the monolithic Caddyfile to sites/legacy.caddy"
+fi
+printf 'import /etc/caddy/sites/*.caddy\n' | sudo tee /etc/caddy/Caddyfile >/dev/null
+
+# Our hostnames must appear in exactly one file. Caddy refuses duplicate site addresses, so
+# strip ours out of the legacy file we just inherited before writing our own.
+if [[ -f /etc/caddy/sites/legacy.caddy ]]; then
+  sudo awk -v names="${SHOP_DOMAIN:-} ${DASH_DOMAIN:-}" '
+    BEGIN { n = split(names, a, " "); for (i = 1; i <= n; i++) if (a[i] != "") drop[a[i]] = 1 }
+    # A top-level site block opens at column 0 and closes with a bare } at column 0.
+    /^[^ \t}]/ && /\{[ \t]*$/ {
+      skip = 0
+      for (i = 1; i < NF; i++) { gsub(/,/, "", $i); if ($i in drop) skip = 1 }
+    }
+    skip && /^\}/ { skip = 0; next }
+    !skip { print }
+  ' /etc/caddy/sites/legacy.caddy | sudo tee /etc/caddy/sites/legacy.caddy.new >/dev/null
+  sudo mv /etc/caddy/sites/legacy.caddy.new /etc/caddy/sites/legacy.caddy
+  grep -q '[^[:space:]]' /etc/caddy/sites/legacy.caddy || sudo rm -f /etc/caddy/sites/legacy.caddy
 fi
 
-if [[ "${KEEP_CADDY:-0}" == "1" ]]; then
-  echo "Skipping Caddyfile rewrite"
-else
-sudo tee /etc/caddy/Caddyfile >/dev/null <<EOF
+sudo tee /etc/caddy/sites/wholesale.caddy >/dev/null <<EOF
 ${SHOP_DOMAIN} {
 	# AI training crawlers walk every /product and /brand page. Prefork PHP
 	# cannot survive that on a ~4 GB box. See docs/CRAWLER-SHIELD.md
@@ -600,13 +618,13 @@ ${SHOP_DOMAIN} {
 		respond "Forbidden" 403
 	}
 	handle /robots.txt {
-		root * /home/ubuntu/ecom_sites/data/sitemaps
+		root * ${DATA_DIR:-$APP_DIR/data}/sitemaps
 		file_server
 		header Cache-Control "public, max-age=3600"
 		header -Server
 	}
 	handle /wp-sitemap* {
-		root * /home/ubuntu/ecom_sites/data/sitemaps
+		root * ${DATA_DIR:-$APP_DIR/data}/sitemaps
 		file_server
 		header Cache-Control "public, max-age=86400"
 		header -Server
@@ -633,10 +651,11 @@ ${DASH_DOMAIN} {
 	}
 }
 EOF
-sudo caddy fmt --overwrite /etc/caddy/Caddyfile
+sudo caddy fmt --overwrite /etc/caddy/sites/wholesale.caddy
+[[ -f /etc/caddy/sites/legacy.caddy ]] && sudo caddy fmt --overwrite /etc/caddy/sites/legacy.caddy
 sudo caddy validate --config /etc/caddy/Caddyfile
 sudo caddy reload --config /etc/caddy/Caddyfile || sudo systemctl reload caddy
-fi
+echo "==> caddy sites: $(ls /etc/caddy/sites/*.caddy 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
 
 docker network create ecom_network 2>/dev/null || true
 docker network create redis_network 2>/dev/null || true
@@ -783,9 +802,6 @@ else
   echo "missing ecom_sites/config/sillage-grants-wholesale.sql — the engine user would have no grants" >&2
   exit 1
 fi
-docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
-  -e "GRANT SELECT, INSERT, UPDATE ON earth_wpf.wp_wc_order_addresses TO 'sillage'@'%'; FLUSH PRIVILEGES;" || true
-
 docker compose --env-file .env up -d
 docker exec wholesale-core bun run migrate
 # Drop unused Hub tags / dangling layers so day-2 deploys do not pile up 20+ images.
