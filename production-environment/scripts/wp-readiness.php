@@ -75,6 +75,46 @@ $option('currency', 'woocommerce_currency', 'EUR', 'woocommerce_currency');
 $option('shop visibility', 'woocommerce_coming_soon', 'no', 'woocommerce_coming_soon');
 $option('hpos', 'woocommerce_custom_orders_table_enabled', 'yes', 'woocommerce_custom_orders_table_enabled');
 
+// The option alone is a claim, not a fact. It is written before WooCommerce is ever activated, and
+// setting it does not create anything: WooCommerce builds the order tables from its own installer.
+// A shop can therefore report HPOS enabled with no order tables at all, and nothing notices until
+// the first order has nowhere to go. Hard rule 4 says orders live in wp_wc_orders, so check that
+// they can.
+$wpdb = $GLOBALS['wpdb'];
+$hpos = array('wc_orders', 'wc_orders_meta', 'wc_order_addresses', 'wc_order_operational_data');
+$missingTables = static function () use ($wpdb, $hpos): array {
+    $missing = array();
+    foreach ($hpos as $suffix) {
+        $table = $wpdb->prefix . $suffix;
+        if (!$wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table))) {
+            $missing[] = $suffix;
+        }
+    }
+    return $missing;
+};
+
+$missing = $missingTables();
+if (!$missing) {
+    $check('hpos tables', true, 'all four order tables present');
+} elseif (!$wooActive) {
+    $check('hpos tables', false, 'missing (' . implode(', ', $missing) . ') — activate WooCommerce first');
+} elseif ($fix && class_exists('WC_Install')) {
+    WC_Install::create_tables();
+    if (method_exists('WC_Install', 'verify_base_tables')) {
+        WC_Install::verify_base_tables(true, true);
+    }
+    $still = $missingTables();
+    $check(
+        'hpos tables',
+        empty($still),
+        empty($still)
+            ? 'created by WC_Install (repaired)'
+            : 'still missing after WC_Install: ' . implode(', ', $still)
+    );
+} else {
+    $check('hpos tables', false, 'missing (' . implode(', ', $missing) . ') — re-run with WP_READINESS_FIX=1');
+}
+
 // "/" must resolve to a real page. Left on "latest posts", WordPress guesses a permalink for the
 // homepage, and on a shop with 51,000 products that lands on whichever product owns it — that is
 // how the homepage once redirected to a vitamin D listing. Which page is the operator's choice:
