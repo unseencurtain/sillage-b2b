@@ -270,7 +270,6 @@ const visibleWithoutPhoto = Number(
          OR LOWER(TRIM(thumb.meta_value)) NOT REGEXP '^https?://'
          OR LOWER(thumb.meta_value) LIKE '%no_image%'
          OR LOWER(thumb.meta_value) LIKE '%placeholder%'
-         OR LOWER(thumb.meta_value) LIKE '%beautyfort.com/pic/%'
        )`,
   ),
 );

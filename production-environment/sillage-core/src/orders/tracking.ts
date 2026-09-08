@@ -226,8 +226,8 @@ export async function maybeCompleteWooOrder(wcOrderId: number, notify: boolean):
 }
 
 /**
- * Poll every live order that is waiting on the vendor, respecting the configured interval.
- * BeautyFort asks for no more than one status poll per 5 minutes; we use the setting (default 15).
+ * Poll every live order that is waiting on the vendor, respecting the configured interval
+ * (default 15 minutes, minimum 5).
  */
 export async function pollDueOrders(limit = 50): Promise<number> {
   const settings = await loadSettings();

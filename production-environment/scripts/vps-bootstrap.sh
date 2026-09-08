@@ -16,10 +16,11 @@ else
 fi
 set +a
 
-WP_DB="${WORDPRESS_DB:-earth}"
+WP_DB="${WORDPRESS_DB:-earth_wpf}"
 DATA_DIR="${DATA_DIR:-$HOME/ecom_sites/data}"
+DB_CONTAINER="${SILLAGE_DB_CONTAINER:-wholesale-db}"
 
-docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" ecom-db mariadb -uroot <<SQL
+docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" "$DB_CONTAINER" mariadb -uroot <<SQL
 CREATE DATABASE IF NOT EXISTS \`${SILLAGE_DB}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS 'sillage'@'%' IDENTIFIED BY '${SILLAGE_DB_PASSWORD}';
 ALTER USER 'sillage'@'%' IDENTIFIED BY '${SILLAGE_DB_PASSWORD}';
@@ -44,25 +45,26 @@ FLUSH PRIVILEGES;
 SQL
 echo "DB_USER_OK"
 
-WPCONFIG="$DATA_DIR/wp/wp-config.php"
-DASH_URL="${SILLAGE_DASHBOARD_URL:-https://${DASH_DOMAIN:-sillage.prinscosmetic.eu}}"
+WPCONFIG="$DATA_DIR/wp-wholesale/wp-config.php"
+DASH_URL="${SILLAGE_DASHBOARD_URL:-https://${DASH_DOMAIN:-sillage-wholesale.mirainikki.xyz}}"
 if [[ ! -f "$WPCONFIG" ]]; then
-  echo "WP_CONFIG_MISSING — start ecom first so WordPress can create wp-config.php" >&2
+  echo "WP_CONFIG_MISSING — start wholesale-ecom first so WordPress can create wp-config.php" >&2
   exit 1
 fi
-python3 - "$WPCONFIG" "$SILLAGE_SHARED_SECRET" "$DASH_URL" <<'PY'
+python3 - "$WPCONFIG" "$SILLAGE_SHARED_SECRET" "$DASH_URL" "${SILLAGE_DB:-sillage_wpf}" <<'PY'
 import sys
 from pathlib import Path
 path = Path(sys.argv[1])
 secret = sys.argv[2]
 dash = sys.argv[3]
+sillage_db = sys.argv[4]
 text = path.read_text()
 block = f"""
 /* Sillage bridge */
 define( 'SILLAGE_SHARED_SECRET', '{secret}' );
-define( 'SILLAGE_CORE_URL', 'http://sillage-core:4000' );
+define( 'SILLAGE_CORE_URL', 'http://wholesale-core:4000' );
 define( 'SILLAGE_DASHBOARD_URL', '{dash}' );
-define( 'SILLAGE_DB', 'sillage' );
+define( 'SILLAGE_DB', '{sillage_db}' );
 
 """
 changed = False

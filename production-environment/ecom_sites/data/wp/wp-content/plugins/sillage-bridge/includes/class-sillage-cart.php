@@ -2,7 +2,7 @@
 /**
  * Single-vendor cart + ship-to country restriction.
  *
- * BeautyFort and BTS cannot share a cart. Checkout only offers countries the cart's vendor
+ * This wholesale shop is wholesale-perfumes only. Checkout only offers countries the vendor
  * can actually deliver to (from `_sillage_ship_countries` meta written by sillage-core).
  *
  * @package Sillage_Bridge
@@ -73,53 +73,12 @@ final class Sillage_Cart {
 	 * @param int  $quantity   Quantity.
 	 */
 	public function validate_add( bool $passed, int $product_id, int $quantity ): bool {
-		unset( $quantity );
-		if ( ! $passed || ! function_exists( 'WC' ) || ! WC()->cart ) {
-			return $passed;
-		}
-
-		$incoming = $this->vendor_for_product( $product_id );
-		if ( $incoming === '' ) {
-			return $passed;
-		}
-
-		$cart_vendor = $this->cart_vendor();
-		if ( $cart_vendor !== '' && $cart_vendor !== $incoming ) {
-			wc_add_notice(
-				sprintf(
-					/* translators: 1: vendor already in cart, 2: vendor of new item */
-					__( 'This cart already contains products from %1$s. Please checkout separately — you cannot mix %1$s and %2$s in one order.', 'sillage-bridge' ),
-					$this->label( $cart_vendor ),
-					$this->label( $incoming )
-				),
-				'error'
-			);
-			return false;
-		}
-
+		unset( $product_id, $quantity );
 		return $passed;
 	}
 
 	public function validate_cart(): void {
-		if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
-			return;
-		}
-
-		$vendors = array();
-		foreach ( WC()->cart->get_cart() as $item ) {
-			$pid = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
-			$v   = $this->vendor_for_product( $pid );
-			if ( $v !== '' ) {
-				$vendors[ $v ] = true;
-			}
-		}
-
-		if ( count( $vendors ) > 1 ) {
-			wc_add_notice(
-				__( 'Your cart mixes products from different wholesalers. Remove one vendor\'s items before checking out.', 'sillage-bridge' ),
-				'error'
-			);
-		}
+		// Single-vendor wholesale shop — mix-vendor cart checks live in the retail Sillage repo.
 	}
 
 	/** @return list<string> */
@@ -146,32 +105,5 @@ final class Sillage_Cart {
 			return $out;
 		}
 		return array();
-	}
-
-	private function vendor_for_product( int $product_id ): string {
-		$meta = get_post_meta( $product_id, '_sillage_vendor', true );
-		return is_string( $meta ) ? strtolower( $meta ) : '';
-	}
-
-	private function cart_vendor(): string {
-		if ( ! WC()->cart ) {
-			return '';
-		}
-		foreach ( WC()->cart->get_cart() as $item ) {
-			$pid = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
-			$v   = $this->vendor_for_product( $pid );
-			if ( $v !== '' ) {
-				return $v;
-			}
-		}
-		return '';
-	}
-
-	private function label( string $slug ): string {
-		$map = array(
-			'bts'        => 'BTS Wholesaler',
-			'beautyfort' => 'BeautyFort',
-		);
-		return $map[ $slug ] ?? $slug;
 	}
 }

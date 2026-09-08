@@ -1,4 +1,4 @@
-import { env, sil, wp } from "../config/env.ts";
+import { sil, wp } from "../config/env.ts";
 import { execute, query, transaction, type PoolConnection, type RowDataPacket } from "../db/pool.ts";
 import { logger } from "../lib/log.ts";
 import { foldKey, slugify, uniqueTermSlug } from "../lib/slugify.ts";
@@ -18,8 +18,7 @@ export const ATTRIBUTE_TAXONOMIES: Record<string, string> = {
   // wc_create_attribute() rejects it and the attribute never gets registered at all.
   type: "pa_item-type",
   volume: "pa_volume",
-  // vendor / pa_vendor is intentionally absent — LPS labels must not appear on the product page.
-  // Retail vendor identity is `_sillage_vendor` postmeta only (see Decision 28).
+  // vendor / pa_vendor is intentionally absent — vendor identity is `_sillage_vendor` postmeta only.
 };
 
 /**
@@ -37,7 +36,6 @@ export const BRAND_TAXONOMY = "product_brand";
 export const CATEGORY_TAXONOMY = "product_cat";
 
 const B2B_VENDOR_SLUG = "wholesale-perfumes";
-const B2B_PAGE_SLUG = "b2b-wholesale";
 
 interface TermRow extends RowDataPacket {
   term_id: number;
@@ -95,9 +93,8 @@ async function insertTerm(
 /**
  * Create the WordPress `product_cat` terms a vendor's feed needs.
  *
- * Only categories actually referenced by products, plus their ancestors, are created — BTS
- * publishes 4,103 nodes but products reference only 1,834 of them, and the rest would be
- * permanently empty terms cluttering the storefront.
+ * Only categories actually referenced by products, plus their ancestors, are created —
+ * unused feed nodes would otherwise become permanently empty storefront terms.
  */
 export async function syncCategories(
   vendorId: number,
@@ -143,8 +140,7 @@ export async function syncCategories(
   const missing = [...needed].filter((k) => !map.has(k));
   if (missing.length === 0) return { map, created: 0 };
 
-  // Depth order guarantees a parent is resolved before its children. The live BTS tree is only
-  // four deep and acyclic, but this is computed rather than assumed.
+  // Depth order guarantees a parent is resolved before its children.
   const depthOf = (key: string): number => {
     let d = 0;
     let cursor: string | null = key;
@@ -430,7 +426,7 @@ export async function purgeWholesalePerfumesBrandProductCats(): Promise<{
   const termIds = [...new Set(brandMaps.map((r) => r.wp_term_id))];
   const ttPh = ttIds.map(() => "?").join(",");
 
-  // Drop only relationships on wholesale-perfumes products — never strip a shared BF/BTS term.
+  // Drop only relationships on wholesale-perfumes products — never strip a leftover parked vendor's term.
   // Subquery form — multi-table DELETE aliases break when the pool has no default schema.
   const relResult = await execute(
     `DELETE FROM ${wp("term_relationships")}
@@ -546,102 +542,12 @@ export async function loadFlatTermMapFromDb(taxonomy: string): Promise<Map<strin
   return map;
 }
 
-/**
- * Park wholesale-perfumes on this (LPS retail) storefront: force vendor inactive, unpublish
- * `/b2b-wholesale/`, and exclude WPF products from catalog + search via product_visibility.
- *
- * B2B lives on a future separate site — see repo `b2b-wholesale/`. Idempotent; safe every sync.
- */
-export async function parkWholesalePerfumesFromMainStorefront(): Promise<{
-  vendorDeactivated: boolean;
-  pagesUnpublished: number;
-  productsHidden: number;
-}> {
-  const vendorResult = await execute(
-    `UPDATE ${sil("sil_vendors")} SET active = 0 WHERE slug = ? AND active <> 0`,
-    [B2B_VENDOR_SLUG],
-  );
-
-  const pageResult = await execute(
-    `UPDATE ${wp("posts")}
-        SET post_status = 'draft',
-            post_modified = NOW(),
-            post_modified_gmt = UTC_TIMESTAMP()
-      WHERE post_type = 'page'
-        AND post_name = ?
-        AND post_status IN ('publish','private')`,
-    [B2B_PAGE_SLUG],
-  );
-
-  const visibility = await loadVisibilityTerms();
-  const catalogTt = visibility["exclude-from-catalog"]!.ttId;
-  const searchTt = visibility["exclude-from-search"]!.ttId;
-
-  // Hide every published WPF product from shop + search (singular URLs may still resolve).
-  const hideResult = await execute(
-    `INSERT IGNORE INTO ${wp("term_relationships")} (object_id, term_taxonomy_id, term_order)
-     SELECT p.ID, vis.tt_id, 0
-       FROM ${wp("posts")} p
-       INNER JOIN ${wp("postmeta")} pm
-         ON pm.post_id = p.ID
-        AND pm.meta_key = '_sillage_vendor'
-        AND pm.meta_value = ?
-       CROSS JOIN (
-         SELECT ? AS tt_id UNION ALL SELECT ?
-       ) vis
-      WHERE p.post_type = 'product'
-        AND p.post_status = 'publish'`,
-    [B2B_VENDOR_SLUG, catalogTt, searchTt],
-  );
-
-  // Keep _visibility meta aligned for admin lists / some theme paths.
-  await execute(
-    `INSERT INTO ${wp("postmeta")} (post_id, meta_key, meta_value)
-     SELECT p.ID, '_visibility', 'hidden'
-       FROM ${wp("posts")} p
-       INNER JOIN ${wp("postmeta")} pm
-         ON pm.post_id = p.ID
-        AND pm.meta_key = '_sillage_vendor'
-        AND pm.meta_value = ?
-      WHERE p.post_type = 'product'
-        AND p.post_status = 'publish'
-        AND NOT EXISTS (
-          SELECT 1 FROM ${wp("postmeta")} existing
-           WHERE existing.post_id = p.ID AND existing.meta_key = '_visibility'
-        )`,
-    [B2B_VENDOR_SLUG],
-  );
-  await execute(
-    `UPDATE ${wp("postmeta")} pm
-       INNER JOIN ${wp("postmeta")} vendor
-         ON vendor.post_id = pm.post_id
-        AND vendor.meta_key = '_sillage_vendor'
-        AND vendor.meta_value = ?
-        SET pm.meta_value = 'hidden'
-      WHERE pm.meta_key = '_visibility'
-        AND pm.meta_value <> 'hidden'`,
-    [B2B_VENDOR_SLUG],
-  );
-
-  const out = {
-    vendorDeactivated: vendorResult.affectedRows > 0,
-    pagesUnpublished: pageResult.affectedRows,
-    productsHidden: hideResult.affectedRows,
-  };
-  if (out.vendorDeactivated || out.pagesUnpublished > 0 || out.productsHidden > 0) {
-    log.info(
-      `parked wholesale-perfumes from main storefront: ` +
-        `vendorOff=${out.vendorDeactivated} pages=${out.pagesUnpublished} hideRels=${out.productsHidden}`,
-    );
-  }
-  return out;
-}
-
-const RETAIL_VENDOR_SLUGS = ["beautyfort", "bts"] as const;
+const LEFTOVER_VENDOR_SLUGS = ["beautyfort", "bts"] as const;
 
 /**
- * Park BeautyFort + BTS on the wholesale storefront: force inactive and hide any leftover
- * products from catalog + search. Idempotent; safe every sync.
+ * Park leftover BeautyFort / BTS rows if a database was copied from the retail shop:
+ * force inactive and hide any leftover products from catalog + search. Idempotent.
+ * This shop does not ship BeautyFort or BTS connectors.
  */
 export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
   vendorsDeactivated: number;
@@ -649,7 +555,7 @@ export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
 }> {
   const vendorResult = await execute(
     `UPDATE ${sil("sil_vendors")} SET active = 0 WHERE slug IN (?, ?) AND active <> 0`,
-    [...RETAIL_VENDOR_SLUGS],
+    [...LEFTOVER_VENDOR_SLUGS],
   );
 
   const visibility = await loadVisibilityTerms();
@@ -669,7 +575,7 @@ export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
        ) vis
       WHERE p.post_type = 'product'
         AND p.post_status = 'publish'`,
-    [RETAIL_VENDOR_SLUGS[0], RETAIL_VENDOR_SLUGS[1], catalogTt, searchTt],
+    [LEFTOVER_VENDOR_SLUGS[0], LEFTOVER_VENDOR_SLUGS[1], catalogTt, searchTt],
   );
 
   await execute(
@@ -686,7 +592,7 @@ export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
           SELECT 1 FROM ${wp("postmeta")} existing
            WHERE existing.post_id = p.ID AND existing.meta_key = '_visibility'
         )`,
-    [...RETAIL_VENDOR_SLUGS],
+    [...LEFTOVER_VENDOR_SLUGS],
   );
   await execute(
     `UPDATE ${wp("postmeta")} pm
@@ -697,7 +603,7 @@ export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
         SET pm.meta_value = 'hidden'
       WHERE pm.meta_key = '_visibility'
         AND pm.meta_value <> 'hidden'`,
-    [...RETAIL_VENDOR_SLUGS],
+    [...LEFTOVER_VENDOR_SLUGS],
   );
 
   const out = {
@@ -706,19 +612,15 @@ export async function parkRetailVendorsFromWholesaleStorefront(): Promise<{
   };
   if (out.vendorsDeactivated > 0 || out.productsHidden > 0) {
     log.info(
-      `parked BeautyFort/BTS from wholesale storefront: vendorOff=${out.vendorsDeactivated} hideRels=${out.productsHidden}`,
+      `parked leftover vendor rows from wholesale storefront: vendorOff=${out.vendorsDeactivated} hideRels=${out.productsHidden}`,
     );
   }
   return out;
 }
 
-/** Profile-aware park: WPF off the retail shop, BF/BTS off the wholesale shop. */
+/** Hide leftover non-wholesale-perfumes vendor rows if present. */
 export async function parkForeignVendorsFromStorefront(): Promise<void> {
-  if (env.sillageProfile === "wholesale") {
-    await parkRetailVendorsFromWholesaleStorefront();
-    return;
-  }
-  await parkWholesalePerfumesFromMainStorefront();
+  await parkRetailVendorsFromWholesaleStorefront();
 }
 
 /**
@@ -878,9 +780,8 @@ export async function attributeTaxonomyExists(taxonomy: string): Promise<boolean
  *
  * WooCommerce counts only published products, and the storefront hides products carrying
  * `exclude-from-catalog`, so those are excluded here too — otherwise category counts overstate
- * what a shopper can actually see. Parked WPF products get that visibility term via
- * `parkWholesalePerfumesFromMainStorefront`, so BF/BTS sidebar counts stay honest without a
- * vendor-meta carve-out.
+ * what a shopper can actually see. Leftover parked-vendor products get that visibility term via
+ * `parkForeignVendorsFromStorefront`.
  */
 export async function recountTerms(taxonomies: string[]): Promise<void> {
   if (taxonomies.length === 0) return;

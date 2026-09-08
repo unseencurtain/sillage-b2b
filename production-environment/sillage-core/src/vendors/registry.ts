@@ -12,10 +12,6 @@ export function isParkedVendor(slug: string): boolean {
   return slug !== "wholesale-perfumes";
 }
 
-export function parkedVendorSlugsFor(): Set<string> {
-  return new Set(["beautyfort", "bts"]);
-}
-
 export function vendorSelectableForSync(slug: string, _explicit: boolean): boolean {
   return slug === "wholesale-perfumes";
 }

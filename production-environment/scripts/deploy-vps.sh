@@ -4,7 +4,7 @@
 # Usage (from repo root):
 #   ./production-environment/scripts/deploy-vps.sh --host ovhe
 #   # Domains optional — defaults from production-environment/.env, else live-shop defaults:
-#   #   shop=prinscosmetic.eu dash=sillage.prinscosmetic.eu images=images.prinscosmetic.eu
+#   #   shop=wholesale.mirainikki.xyz dash=sillage-wholesale.mirainikki.xyz images=images.prinscosmetic.eu
 #   ./production-environment/scripts/deploy-vps.sh \
 #       --host ovhe \
 #       [--shop …] [--dash …] [--images …] \
@@ -85,8 +85,8 @@ CREDS="$ROOT/.deploy/vps-dashboard-${HOST}.txt"
 START_EPOCH=$(date +%s)
 
 # Staging defaults when CLI + local .env omit domains (ovhe).
-DEFAULT_SHOP_DOMAIN=prinscosmetic.eu
-DEFAULT_DASH_DOMAIN=sillage.prinscosmetic.eu
+DEFAULT_SHOP_DOMAIN=wholesale.mirainikki.xyz
+DEFAULT_DASH_DOMAIN=sillage-wholesale.mirainikki.xyz
 DEFAULT_IMAGES_DOMAIN=images.prinscosmetic.eu
 
 log_step() {
@@ -160,7 +160,7 @@ if [[ -z "$NAMESPACE" ]]; then
   NAMESPACE="$(docker info 2>/dev/null | sed -n 's/^ Username: //p' | head -1 || true)"
 fi
 NAMESPACE="${NAMESPACE:-unseencurtain}"
-CORE_IMAGE="${NAMESPACE}/sillage-core:${TAG}"
+CORE_IMAGE="${NAMESPACE}/sillage-b2b:${TAG}"
 WP_IMAGE="${NAMESPACE}/sillage-wordpress:${TAG}"
 
 if [[ "$SKIP_BUILD" -eq 0 ]]; then
@@ -265,13 +265,13 @@ LPS_MEDIA_NGINX_CONF=/home/ubuntu/${REMOTE_DIR}/ecom_sites/config/nginx-lps-medi
 PHP_INI=/home/ubuntu/${REMOTE_DIR}/ecom_sites/config/php.ini
 
 DB_BIND=127.0.0.1
-DB_HOST_PORT=3307
+DB_HOST_PORT=3308
 ECOM_BIND=127.0.0.1
-ECOM_PORT=104
+ECOM_PORT=106
 MEDIA_BIND=127.0.0.1
 MEDIA_PORT=105
 SILLAGE_BIND=127.0.0.1
-SILLAGE_PORT=4000
+SILLAGE_PORT=4001
 
 SHOP_DOMAIN=${SHOP_DOMAIN}
 DASH_DOMAIN=${DASH_DOMAIN}
@@ -280,30 +280,23 @@ WP_BASE_URL=https://${SHOP_DOMAIN}
 LPS_MEDIA_BASE_URL=${LPS_URL}
 
 MYSQL_ROOT_PWD=${MYSQL_ROOT}
-MYSQL_DB=earth
+MYSQL_DB=earth_wpf
 MYSQL_USER=lime
 MYSQL_PWD=${MYSQL_PWD_GEN}
 
 NODE_ENV=production
 PORT=4000
 LOG_LEVEL=info
-DB_HOST=ecom-db
+DB_HOST=wholesale-db
 DB_PORT=3306
 DB_USER=sillage
 SILLAGE_DB_PASSWORD=${DBPASS}
-SILLAGE_DB=sillage
-WORDPRESS_DB=earth
+SILLAGE_DB=sillage_wpf
+WORDPRESS_DB=earth_wpf
 WP_TABLE_PREFIX=wp_
 DB_CONNECTION_LIMIT=10
 SILLAGE_SHARED_SECRET=${SECRET}
 
-BEAUTYFORT_USER=${BEAUTYFORT_USER:-}
-BEAUTYFORT_SECRET=${BEAUTYFORT_SECRET:-}
-BEAUTYFORT_ENDPOINT=${BEAUTYFORT_ENDPOINT:-https://www.beautyfort.com/api/soap/v4}
-BEAUTYFORT_TEST_MODE=false
-BTS_JWT_TOKEN=${BTS_JWT_TOKEN:-}
-BTS_BASE_URL=${BTS_BASE_URL:-https://api.btswholesaler.com/v1/api}
-BTS_LANGUAGE=en-US
 WHOLESALE_PERFUMES_USER=${WHOLESALE_PERFUMES_USER:-}
 WHOLESALE_PERFUMES_TOKEN=${WHOLESALE_PERFUMES_TOKEN:-}
 WHOLESALE_PERFUMES_CATALOG_URL=${WHOLESALE_PERFUMES_CATALOG_URL:-https://www.wholesale-perfumes.eu/xml/catalog/LovelyXml/en}
@@ -316,7 +309,7 @@ DASHBOARD_USER=admin
 DASHBOARD_PASSWORD=${PASS}
 SESSION_SECRET=${SESSION}
 FIXTURES_DIR=/app/.feedscratch
-REDIS_URL=redis://valkey:6379
+REDIS_URL=redis://wholesale-valkey:6379
 EOF
   "${SSH[@]}" "$HOST" "chmod 600 ~/${REMOTE_DIR}/.env"
 
@@ -336,7 +329,7 @@ EOF
 else
   # Update image tags + domains/vendor keys; keep DB/dashboard secrets.
   # Non-empty local values win; empty local values leave remote secrets untouched.
-  "${SSH[@]}" "$HOST" "SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CORE_IMAGE='$CORE_IMAGE' WP_IMAGE='$WP_IMAGE' LOCAL_BF_USER='${BEAUTYFORT_USER:-}' LOCAL_BF_SECRET='${BEAUTYFORT_SECRET:-}' LOCAL_BF_ENDPOINT='${BEAUTYFORT_ENDPOINT:-}' LOCAL_BTS_JWT='${BTS_JWT_TOKEN:-}' LOCAL_BTS_BASE='${BTS_BASE_URL:-}' LOCAL_WPF_USER='${WHOLESALE_PERFUMES_USER:-}' LOCAL_WPF_TOKEN='${WHOLESALE_PERFUMES_TOKEN:-}' LOCAL_WPF_CATALOG='${WHOLESALE_PERFUMES_CATALOG_URL:-}' LOCAL_WPF_STOCK='${WHOLESALE_PERFUMES_STOCK_URL:-}' LOCAL_WPF_API='${WHOLESALE_PERFUMES_API_BASE_URL:-}' LOCAL_BRASTY_PRODUCT='${BRASTY_PRODUCT_FEED_URL:-}' LOCAL_BRASTY_AVAIL='${BRASTY_AVAILABILITY_FEED_URL:-}' python3 -" <<'PY'
+  "${SSH[@]}" "$HOST" "SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CORE_IMAGE='$CORE_IMAGE' WP_IMAGE='$WP_IMAGE' LOCAL_WPF_USER='${WHOLESALE_PERFUMES_USER:-}' LOCAL_WPF_TOKEN='${WHOLESALE_PERFUMES_TOKEN:-}' LOCAL_WPF_CATALOG='${WHOLESALE_PERFUMES_CATALOG_URL:-}' LOCAL_WPF_STOCK='${WHOLESALE_PERFUMES_STOCK_URL:-}' LOCAL_WPF_API='${WHOLESALE_PERFUMES_API_BASE_URL:-}' LOCAL_BRASTY_PRODUCT='${BRASTY_PRODUCT_FEED_URL:-}' LOCAL_BRASTY_AVAIL='${BRASTY_AVAILABILITY_FEED_URL:-}' python3 -" <<'PY'
 import os, pathlib, re
 p = pathlib.Path.home() / "sillage" / ".env"
 text = p.read_text()
@@ -360,11 +353,6 @@ for k, v in [
     ("IMAGES_DOMAIN", images),
     ("WP_BASE_URL", f"https://{shop}"),
     ("LPS_MEDIA_BASE_URL", lps),
-    ("BEAUTYFORT_USER", os.environ.get("LOCAL_BF_USER") or None),
-    ("BEAUTYFORT_SECRET", os.environ.get("LOCAL_BF_SECRET") or None),
-    ("BEAUTYFORT_ENDPOINT", os.environ.get("LOCAL_BF_ENDPOINT") or None),
-    ("BTS_JWT_TOKEN", os.environ.get("LOCAL_BTS_JWT") or None),
-    ("BTS_BASE_URL", os.environ.get("LOCAL_BTS_BASE") or None),
     ("WHOLESALE_PERFUMES_USER", os.environ.get("LOCAL_WPF_USER") or None),
     ("WHOLESALE_PERFUMES_TOKEN", os.environ.get("LOCAL_WPF_TOKEN") or None),
     ("WHOLESALE_PERFUMES_CATALOG_URL", os.environ.get("LOCAL_WPF_CATALOG") or None),
@@ -544,7 +532,7 @@ if [[ -f "$HOME/ecom_sites/compose.yaml" ]]; then
   (cd "$HOME/ecom_sites" && docker compose down 2>/dev/null) || true
 fi
 
-mkdir -p "$DATA_DIR/media" "$DATA_DIR/wp" "$DATA_DIR/wp-db" \
+mkdir -p "$DATA_DIR/media" "$DATA_DIR/wp-wholesale" "$DATA_DIR/wholesale-db" \
   "$HOME/sillage/sillage-core/logs" "$HOME/sillage/.feedscratch"
 # Ensure image overrides + secrets overlay files exist for bind mounts (file, not directory).
 [[ -f "$HOME/sillage/sillage-core/data/image_overrides.json" ]] \
@@ -554,10 +542,10 @@ mkdir -p "$DATA_DIR/media" "$DATA_DIR/wp" "$DATA_DIR/wp-db" \
 chmod 600 "$HOME/sillage/sillage-core/data/secrets.overlay.env" 2>/dev/null || true
 
 docker compose --env-file .env pull
-docker compose --env-file .env up -d ecom-db valkey
+docker compose --env-file .env up -d wholesale-db wholesale-valkey
 echo "Waiting for MariaDB..."
 for i in $(seq 1 60); do
-  if docker exec -i ecom-db healthcheck.sh --connect --innodb_initialized </dev/null 2>/dev/null; then
+  if docker exec -i wholesale-db healthcheck.sh --connect --innodb_initialized </dev/null 2>/dev/null; then
     break
   fi
   sleep 2
@@ -565,7 +553,7 @@ done
 
 if [[ -f /tmp/sillage-clone.sql ]]; then
   echo "Importing cloned SQL..."
-  docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" ecom-db mariadb -uroot < /tmp/sillage-clone.sql
+  docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot < /tmp/sillage-clone.sql
   rm -f /tmp/sillage-clone.sql
 fi
 
@@ -573,40 +561,40 @@ docker compose --env-file .env up -d
 
 echo "Waiting for WordPress files..."
 for i in $(seq 1 90); do
-  if [[ -f "$DATA_DIR/wp/wp-config.php" ]]; then
+  if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
     break
   fi
   sleep 2
 done
 
 NEED_FRESH=0
-if [[ ! -f "$DATA_DIR/wp/wp-config.php" ]]; then
+if [[ ! -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
   NEED_FRESH=1
 fi
 if [[ -z "${CLONE_MODE:-}" && ( "$NEED_FRESH" -eq 1 || "${FRESH:-0}" == "1" ) ]]; then
   echo "Fetching WooCommerce / redis-cache / Blocksy from wordpress.org..."
-  sudo chown -R "$USER":"$USER" "$DATA_DIR/wp/wp-content" 2>/dev/null || true
-  mkdir -p "$DATA_DIR/wp/wp-content/plugins" "$DATA_DIR/wp/wp-content/themes"
+  sudo chown -R "$USER":"$USER" "$DATA_DIR/wp-wholesale/wp-content" 2>/dev/null || true
+  mkdir -p "$DATA_DIR/wp-wholesale/wp-content/plugins" "$DATA_DIR/wp-wholesale/wp-content/themes"
   cd /tmp
   for item in "plugin:woocommerce" "plugin:redis-cache" "theme:blocksy"; do
     kind=${item%%:*}; slug=${item##*:}
-    dest="$DATA_DIR/wp/wp-content/${kind}s/${slug}"
+    dest="$DATA_DIR/wp-wholesale/wp-content/${kind}s/${slug}"
     if [[ -d "$dest" ]]; then
       echo "  $slug already present"
       continue
     fi
     curl -fsSL -o "${slug}.zip" "https://downloads.wordpress.org/${kind}/${slug}.latest-stable.zip"
-    unzip -qo "${slug}.zip" -d "$DATA_DIR/wp/wp-content/${kind}s"
+    unzip -qo "${slug}.zip" -d "$DATA_DIR/wp-wholesale/wp-content/${kind}s"
     rm -f "${slug}.zip"
   done
 
   # Wait again for wp-config from the official image entrypoint
   for i in $(seq 1 60); do
-    [[ -f "$DATA_DIR/wp/wp-config.php" ]] && break
+    [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]] && break
     sleep 2
   done
 
-  if [[ -f "$DATA_DIR/wp/wp-config.php" ]]; then
+  if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
     cat > /tmp/wp-fresh-install.php <<'PHP'
 <?php
 define('WP_INSTALLING', true);
@@ -638,21 +626,21 @@ if (wp_get_theme('blocksy')->exists()) {
 }
 echo 'siteurl=' . get_option('siteurl') . PHP_EOL;
 PHP
-    docker cp /tmp/wp-fresh-install.php ecom:/tmp/wp-fresh-install.php
-    docker exec -e SHOP_DOMAIN="$SHOP_DOMAIN" -e WP_ADMIN_PASS="${WP_ADMIN_PASS:-}" ecom php /tmp/wp-fresh-install.php
+    docker cp /tmp/wp-fresh-install.php wholesale-ecom:/tmp/wp-fresh-install.php
+    docker exec -e SHOP_DOMAIN="$SHOP_DOMAIN" -e WP_ADMIN_PASS="${WP_ADMIN_PASS:-}" wholesale-ecom php /tmp/wp-fresh-install.php
   fi
 fi
 
 export SILLAGE_DASHBOARD_URL="https://${DASH_DOMAIN}"
 if [[ -f "$HOME/sillage/scripts/fix-wp-content-perms.sh" ]]; then
-  bash "$HOME/sillage/scripts/fix-wp-content-perms.sh" --dir "$DATA_DIR/wp" || true
+  bash "$HOME/sillage/scripts/fix-wp-content-perms.sh" --dir "$DATA_DIR/wp-wholesale" || true
 fi
-if [[ -f "$DATA_DIR/wp/wp-config.php" ]]; then
-  sudo chown "$USER":"$USER" "$DATA_DIR/wp/wp-config.php" || true
-  sudo chmod 664 "$DATA_DIR/wp/wp-config.php" || true
+if [[ -f "$DATA_DIR/wp-wholesale/wp-config.php" ]]; then
+  sudo chown "$USER":"$USER" "$DATA_DIR/wp-wholesale/wp-config.php" || true
+  sudo chmod 664 "$DATA_DIR/wp-wholesale/wp-config.php" || true
   # Point bootstrap at unified env
   bash "$HOME/sillage/scripts/vps-bootstrap.sh"
-  WP="$DATA_DIR/wp/wp-config.php"
+  WP="$DATA_DIR/wp-wholesale/wp-config.php"
   grep -q DISABLE_WP_CRON "$WP" || python3 - <<PY
 from pathlib import Path
 p = Path("$WP")
@@ -664,7 +652,7 @@ PY
 fi
 
 if [[ -n "${CLONE_MODE:-}" ]]; then
-  docker exec ecom php -r "
+  docker exec wholesale-ecom php -r "
     require '/var/www/html/wp-load.php';
     \$url = 'https://${SHOP_DOMAIN}';
     update_option('siteurl', \$url);
@@ -677,22 +665,22 @@ cd "$HOME/sillage"
 set -a; source .env; set +a
 if [[ -f ecom_sites/config/sillage-grants.sql ]]; then
   sed "s|__SILLAGE_DB_PASSWORD__|${SILLAGE_DB_PASSWORD}|g" ecom_sites/config/sillage-grants.sql \
-    | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" ecom-db mariadb -uroot
+    | docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot
 fi
-docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" ecom-db mariadb -uroot \
-  -e "GRANT SELECT, INSERT, UPDATE ON earth.wp_wc_order_addresses TO 'sillage'@'%'; FLUSH PRIVILEGES;" || true
+docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
+  -e "GRANT SELECT, INSERT, UPDATE ON earth_wpf.wp_wc_order_addresses TO 'sillage'@'%'; FLUSH PRIVILEGES;" || true
 
 docker compose --env-file .env up -d
-docker exec sillage-core bun run migrate
+docker exec wholesale-core bun run migrate
 # Drop unused Hub tags / dangling layers so day-2 deploys do not pile up 20+ images.
 docker image prune -af
 echo "Images after prune:"
 docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"
-docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" ecom-db mariadb -uroot \
-  -e "GRANT SELECT ON sillage.sil_ean_index TO 'lime'@'%'; GRANT SELECT ON sillage.sil_settings TO 'lime'@'%'; GRANT SELECT ON sillage.sil_vendors TO 'lime'@'%'; FLUSH PRIVILEGES;" || true
-docker exec ecom php -r 'require "/var/www/html/wp-load.php"; require_once ABSPATH."wp-admin/includes/plugin.php"; activate_plugin("sillage-bridge/sillage-bridge.php"); echo "plugin ok\n";' || true
+docker exec -e MYSQL_PWD="$MYSQL_ROOT_PWD" wholesale-db mariadb -uroot \
+  -e "GRANT SELECT ON sillage_wpf.sil_ean_index TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_settings TO 'lime'@'%'; GRANT SELECT ON sillage_wpf.sil_vendors TO 'lime'@'%'; FLUSH PRIVILEGES;" || true
+docker exec wholesale-ecom php -r 'require "/var/www/html/wp-load.php"; require_once ABSPATH."wp-admin/includes/plugin.php"; activate_plugin("sillage-bridge/sillage-bridge.php"); echo "plugin ok\n";' || true
 
-curl -sS "http://127.0.0.1:${SILLAGE_PORT:-4000}/health" || true
+curl -sS "http://127.0.0.1:${SILLAGE_PORT:-4001}/health" || true
 echo
 docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
 echo "Deploy finished. Open https://${DASH_DOMAIN}"

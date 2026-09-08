@@ -15,7 +15,6 @@ import {
   markPriceDirtyFromPendingOffers,
   resolveProductIdentities,
   selectPrimaryOffers,
-  staleOfferRatio,
 } from "./diff.ts";
 import { resolveDeltaSince } from "./deltaSince.ts";
 import { finalizeWordPress } from "./finalize.ts";
@@ -38,8 +37,6 @@ import {
 import { clearSyncAbort, SyncAbortedError, throwIfSyncAborted } from "./abort.ts";
 import { normalizeVolume, vendorStorefrontLabel } from "./volume.ts";
 import { buildWriteContext, writePendingProducts, type WriteContext, type WriteMode } from "./writer.ts";
-import type { CacheVendor } from "../vendors/feedCache.ts";
-import { checkLiveGate, recordLiveFetch } from "../vendors/liveGate.ts";
 import {
   consumeCatalogueRebuildFlag,
   restoreCatalogueRebuildFlag,
@@ -51,8 +48,8 @@ export interface SyncOptions {
   mode: WriteMode;
   source: FeedSource;
   /**
-   * Vendor slugs to include. Empty means every active *retail* vendor
-   * (`--vendor=all` skips parked slugs for this storefront profile).
+   * Vendor slugs to include. Empty means wholesale-perfumes (`--vendor=all`
+   * skips any leftover parked slugs).
    */
   vendors?: string[];
   /** Fetch and diff but make no WooCommerce writes. */
@@ -129,11 +126,9 @@ export interface SyncSummary {
   errors: number;
   /** Products hidden because the resolved image was still missing/placeholder. */
   hiddenNoImage: number;
-  /** Per-vendor rows touched in this run (full catalogue size or BTS delta count). */
+  /** Per-vendor rows touched in this run (catalogue SKUs compared). */
   fetchedByVendor?: Record<string, number>;
   skippedVendors?: string[];
-  /** True when BTS used the changes API rather than a full catalogue pull. */
-  btsDelta?: boolean;
 }
 
 async function startRun(mode: WriteMode, source: FeedSource, vendorId: number | null): Promise<number> {
@@ -225,7 +220,6 @@ export async function runSync(options: SyncOptions): Promise<SyncSummary> {
     hiddenNoImage: 0,
     fetchedByVendor: {},
     skippedVendors: [],
-    btsDelta: false,
   };
 
   try {
@@ -236,9 +230,7 @@ export async function runSync(options: SyncOptions): Promise<SyncSummary> {
     const settings = await loadSettings();
     applyRuntimeUrls({ wpBaseUrl: settings.wpBaseUrl, imageCdnBaseUrl: settings.imageCdnBaseUrl });
     const allVendors = await loadVendors();
-    // Empty vendors = --vendor=all → skip parked slugs for this profile.
-    // Retail still allows an explicit wholesale-perfumes slug (offline tests).
-    // Wholesale never selects BeautyFort / BTS, even when named.
+    // Empty vendors = --vendor=all → skip leftover parked slugs. Only wholesale-perfumes syncs.
     const named = Boolean(options.vendors?.length);
     const pool = (named
       ? allVendors.filter((v) => options.vendors!.includes(v.slug))
@@ -315,15 +307,6 @@ export async function runSync(options: SyncOptions): Promise<SyncSummary> {
       }
 
       // ── Full path ──────────────────────────────────────────────────────────
-      if (options.source === "live" && vendor.slug !== "wholesale-perfumes") {
-        const gate = await checkLiveGate(vendor.slug as CacheVendor);
-        if (!gate.allow) {
-          log.warn(`${vendor.slug}: skipping live catalogue rebuild — ${gate.reason}`);
-          summary.skippedVendors = [...(summary.skippedVendors ?? []), vendor.slug];
-          continue;
-        }
-      }
-
       const fetchStarted = Date.now();
       await connector.prepare(options.source, (m) => log.progress(`${vendor.slug}: ${m}`));
       const raw = await connector.fetchRaw(options.source, (m) => log.progress(`${vendor.slug}: ${m}`));
@@ -446,8 +429,6 @@ export async function runSync(options: SyncOptions): Promise<SyncSummary> {
         });
       }
     } else if (!options.dryRun) {
-      // BTS delta used to set offer.status='pending' and return without ever
-      // marking sil_products dirty, so WooCommerce never saw BTS price/stock.
       await resolveProductIdentities(settings);
       if (summary.created > 0) {
         const reassigned = await selectPrimaryOffers(settings);
@@ -546,10 +527,8 @@ export async function runSync(options: SyncOptions): Promise<SyncSummary> {
 }
 
 /**
- * The 30-minute cadence.
- *
- * BTS exposes a real delta endpoint. BeautyFort does not, so it re-downloads the whole 3.5 MB
- * stock file and diffs locally — still only a few seconds, and far cheaper than a full rewrite.
+ * Incremental cadence: wholesale-perfumes hourly store XML (price/stock), then
+ * a full catalog checksum diff if the store feed is unavailable.
  */
 async function fastSyncVendor(
   vendor: Vendor,
@@ -558,50 +537,22 @@ async function fastSyncVendor(
   runId: number,
   summary: SyncSummary,
 ): Promise<number> {
-  if (options.source === "live" && vendor.slug !== "wholesale-perfumes") {
-    const gate = await checkLiveGate(vendor.slug as CacheVendor);
-    if (!gate.allow) {
-      // Do not fall back to a stale on-disk feed — operator/schedule must wait out the cooldown.
-      log.warn(`${vendor.slug}: skipping live price/stock sync — ${gate.reason}`);
-      summary.skippedVendors = [...(summary.skippedVendors ?? []), vendor.slug];
-      return 0;
-    }
-  }
-
-  // After a long gap the BTS delta window (even floored) cannot resurrect vanished
-  // SKUs or refresh last_seen on the unchanged majority. Rebuild from the full feed.
-  let forceFullFeed = false;
-  if (vendor.slug === "bts") {
-    const stale = await staleOfferRatio(vendor.id, 7 * 24);
-    if (stale > 0.25) {
-      log.warn(
-        `${vendor.slug}: ${Math.round(stale * 100)}% of offers unseen for 7d — pulling the full catalogue`,
-      );
-      forceFullFeed = true;
-    }
-  }
-
-  if (!forceFullFeed && connector.fetchPriceStock && options.source === "live") {
+  if (connector.fetchPriceStock && options.source === "live") {
     // wholesale-perfumes store feed has its own hourly gate inside fetchPriceStock.
-    const sharedGate = vendor.slug !== "wholesale-perfumes";
     const lastVendorSuccess = await lastSuccessfulRun(vendor.id);
     const since = resolveDeltaSince({ lastSuccessAt: lastVendorSuccess, vendorId: vendor.slug });
     try {
       const updates = await connector.fetchPriceStock(since, (m) => log.progress(`${vendor.slug}: ${m}`));
       log.progressEnd();
       if (updates) {
-        if (sharedGate) await recordLiveFetch(vendor.slug as CacheVendor);
         const ids = updates.map((u) => u.vendorProductId);
         const known = await existingVendorProductIds(vendor.id, ids);
-        const matched = vendor.slug === "wholesale-perfumes"
-          ? updates.filter((u) => known.has(u.vendorProductId))
-          : updates;
+        const matched = updates.filter((u) => known.has(u.vendorProductId));
         // Fetched = SKUs in our catalogue we compared, not raw vendor XML lines.
         // wholesale-perfumes store XML has many rows per product id.
         summary.fetched += matched.length;
         summary.fetchedByVendor = summary.fetchedByVendor ?? {};
         summary.fetchedByVendor[vendor.slug] = (summary.fetchedByVendor[vendor.slug] ?? 0) + matched.length;
-        if (vendor.slug === "bts") summary.btsDelta = true;
         const changed = await applyPriceStockDelta(vendor.id, matched);
         summary.updated += changed;
 
@@ -609,25 +560,21 @@ async function fastSyncVendor(
           const imported = await importMissingDeltaProducts({
             vendor,
             connector,
-            updates: vendor.slug === "wholesale-perfumes" ? matched : updates,
+            updates: matched,
             since,
             runId,
             summary,
           });
           return changed + imported;
         } catch (err) {
-          // Delta prices/stock already applied. Do not fall through to a full
-          // catalogue pull — that would re-hit the vendor and trip the call interval.
-          log.warn(`${vendor.slug}: importing new SKUs from delta failed: ${String(err)}`);
+          log.warn(`${vendor.slug}: importing new SKUs from store feed failed: ${String(err)}`);
           return changed;
         }
       }
     } catch (err) {
-      log.warn(`${vendor.slug}: delta fetch failed, falling back to a full feed diff`, String(err));
+      log.warn(`${vendor.slug}: store feed failed, falling back to a full catalog diff`, String(err));
     }
   }
-  // BeautyFort, stale BTS recovery, and delta miss: pull the full feed and diff by checksum.
-  // source=local|cache reads fixtures/disk; source=live hits the vendor (gate already checked).
   try {
     await connector.prepare(options.source, (m) => log.progress(`${vendor.slug}: ${m}`));
     const raw = await connector.fetchRaw(options.source, (m) => log.progress(`${vendor.slug}: ${m}`));
@@ -654,7 +601,7 @@ async function fastSyncVendor(
 }
 
 /**
- * Delta rows only UPDATE existing offers. SKUs BTS added since the last full
+ * Store-feed rows only UPDATE existing offers. SKUs added since the last full
  * import never get a row — pull their catalogue records and upsert without
  * vanishing the rest of the vendor.
  */

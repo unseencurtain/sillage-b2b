@@ -2,8 +2,7 @@
  * Vendor order dispatcher.
  *
  * Transitions are conditional UPDATEs so two workers cannot both claim a row. A row left in
- * `submitting` for BTS is never auto-retried — that is how we avoid paying twice when the
- * outcome of setCreateOrder is unknown.
+ * `submitting` is never auto-retried — wholesale-perfumes has no client idempotency key.
  */
 import { createHash } from "node:crypto";
 import { sil } from "../config/env.ts";
@@ -329,8 +328,8 @@ export async function dispatchVendorOrder(
       }
     }
 
-    // Persist the payload hash *before* the committing call. For BTS this is the only record of
-    // what we tried to send if the process dies mid-request.
+    // Persist the payload hash *before* the committing call. If the process dies mid-request
+    // this is the only record of what we tried to send.
     const preHash = payloadHash({ draft, quotes, dryRun });
     await execute(
       `UPDATE ${sil("sil_vendor_orders")}
@@ -349,10 +348,10 @@ export async function dispatchVendorOrder(
     const result: VendorOrderResult = await adapter.submit(draft, dryRun);
     return await applySubmitResult(id, adapter, result, dryRun, settings);
   } catch (err) {
-    // Unexpected throw. For BTS/wholesale-perfumes an ambiguous outcome must not be auto-retried (no idempotency key).
+    // Unexpected throw. wholesale-perfumes has no client idempotency key — ambiguous outcomes
+    // must not be auto-retried.
     const message = String(err);
-    const to: VendorOrderStatus =
-      vendor.slug === "bts" || vendor.slug === "wholesale-perfumes" ? "needs_attention" : "failed";
+    const to: VendorOrderStatus = "needs_attention";
     await transition(id, "submitting", to, message, { last_error: message });
     await recordEvent("error", "dispatch", `order ${id} submit threw: ${message}`);
     return { id, status: to, dryRun, vendorOrderNumber: null, reason: message };
@@ -388,7 +387,7 @@ async function applySubmitResult(
   }
 
   if (result.error && !result.committed) {
-    // BeautyFort may have created a shell; keep its number for cleanup.
+    // Keep a vendor number if one was returned, for cleanup.
     const to: VendorOrderStatus = result.vendorOrderNumber && adapter.cancel ? "needs_attention" : "failed";
     await transition(id, "submitting", to, result.error, {
       vendor_order_number: result.vendorOrderNumber,
@@ -431,8 +430,8 @@ async function applySubmitResult(
 }
 
 /**
- * On startup (and each cron tick): any BTS row stuck in `submitting` goes to needs_attention.
- * BeautyFort shells in the same state are cancellable, so they go there too for a human to decide.
+ * On startup (and each cron tick): any row stuck in `submitting` goes to needs_attention.
+ * There is no client idempotency key, so a retry cannot be proven safe.
  */
 export async function recoverStuckSubmits(): Promise<number> {
   const rows = await query<VendorOrderRow>(

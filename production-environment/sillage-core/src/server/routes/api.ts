@@ -35,7 +35,7 @@ import {
 import type { OrderAddress } from "../../orders/types.ts";
 import { getStorefrontLiveCooldown } from "../../vendors/liveGate.ts";
 import { parseVendorPatch } from "../../vendors/validateVendorPatch.ts";
-import { isParkedVendor, parkedVendorSlugsFor, storefrontVendorSlugs } from "../../vendors/registry.ts";
+import { isParkedVendor, storefrontVendorSlugs } from "../../vendors/registry.ts";
 import { isWholesaleProfile } from "../../storefront/profile.ts";
 import { requireSession, type AuthEnv } from "../auth.ts";
 
@@ -44,7 +44,6 @@ const log = logger("api");
 function parseRunStats(raw: unknown): {
   fetchedByVendor?: Record<string, number>;
   skippedVendors?: string[];
-  btsDelta?: boolean;
 } {
   if (!raw) return {};
   try {
@@ -53,12 +52,10 @@ function parseRunStats(raw: unknown): {
     const obj = parsed as {
       fetchedByVendor?: Record<string, number>;
       skippedVendors?: string[];
-      btsDelta?: boolean;
     };
     return {
       fetchedByVendor: obj.fetchedByVendor,
       skippedVendors: obj.skippedVendors,
-      btsDelta: obj.btsDelta,
     };
   } catch {
     return {};
@@ -73,7 +70,6 @@ function decorateSyncRun(row: RowDataPacket) {
     ...rest,
     fetched_by_vendor: extra.fetchedByVendor ?? null,
     skipped_vendors: extra.skippedVendors ?? [],
-    bts_delta: extra.btsDelta === true,
   };
 }
 
@@ -294,7 +290,7 @@ api.post("/sync/run", async (c) => {
     ? body.vendors.filter((v): v is string => allowed.has(v))
     : undefined;
   const vendorList = vendors?.length ? vendors : storefrontVendorSlugs();
-  const vendorNames = isWholesaleProfile() ? "wholesale-perfumes" : "BeautyFort + BTS";
+  const vendorNames = "wholesale-perfumes";
 
   await clearSyncAbort();
 
@@ -397,9 +393,7 @@ api.get("/secrets", (c) => {
   return c.json({
     path,
     hotReload: true,
-    note: isWholesaleProfile()
-      ? "Changes apply immediately. This wholesale instance only uses wholesale-perfumes credentials. Dispatch is sandbox-locked (dry-run)."
-      : "Changes apply immediately to this process and at the start of each sync. No container restart required for BF/BTS credentials.",
+    note: "Changes apply immediately. This wholesale shop only uses wholesale-perfumes credentials. Dispatch is sandbox-locked (dry-run).",
     secrets,
   });
 });
@@ -463,22 +457,6 @@ api.get("/sync/live-status", async (c) => {
     catalogueReady,
     scheduleOwnsFastSync: settings.syncEnabled,
     dailyCapEnabled: false,
-    beautyfort: {
-      allow: cooldown.beautyfort.allow,
-      reason: cooldown.beautyfort.reason,
-      retryInMinutes: cooldown.beautyfort.retryInMinutes,
-      maxPerDay: cooldown.beautyfort.maxPerDay,
-      usedToday: cooldown.beautyfort.usedToday,
-      dailyRemaining: null,
-    },
-    bts: {
-      allow: cooldown.bts.allow,
-      reason: cooldown.bts.reason,
-      retryInMinutes: cooldown.bts.retryInMinutes,
-      maxPerDay: cooldown.bts.maxPerDay,
-      usedToday: cooldown.bts.usedToday,
-      dailyRemaining: null,
-    },
     wholesalePerfumes: wpf
       ? {
           allow: wpf.allow,
@@ -629,26 +607,21 @@ api.get("/vendors", async (c) => {
   const lastFetchRows = await query<RowDataPacket & { setting_key: string; setting_value: string }>(
     `SELECT setting_key, setting_value FROM ${sil("sil_settings")}
       WHERE setting_key IN (
-        'last_live_fetch_beautyfort',
-        'last_live_fetch_bts',
-        'last_live_fetch_wholesale-perfumes'
+        'last_live_fetch_wholesale-perfumes',
+        'last_live_fetch_wholesale-perfumes_store'
       )`,
   );
   const lastLiveFetch: Record<string, string | null> = {
-    beautyfort: null,
-    bts: null,
     "wholesale-perfumes": null,
   };
   for (const row of lastFetchRows) {
-    if (row.setting_key === "last_live_fetch_beautyfort") lastLiveFetch.beautyfort = row.setting_value;
-    if (row.setting_key === "last_live_fetch_bts") lastLiveFetch.bts = row.setting_value;
     if (row.setting_key === "last_live_fetch_wholesale-perfumes") {
       lastLiveFetch["wholesale-perfumes"] = row.setting_value;
     }
   }
   return c.json({
     profile: env.sillageProfile,
-    parkedVendors: [...parkedVendorSlugsFor()],
+    parkedVendors: vendors.filter((v) => isParkedVendor(v.slug)).map((v) => v.slug),
     globalPriceMultiplier: settings.priceMultiplier,
     globalStockThreshold: settings.stockThreshold,
     callIntervalMinutes: settings.liveFeedMinMinutes,
@@ -1047,8 +1020,8 @@ api.get("/settings", async (c) => {
   ]);
   return c.json({
     sillage_profile: env.sillageProfile,
-    parked_vendors: [...parkedVendorSlugsFor()].join(","),
-    orders_sandbox_locked: isWholesaleProfile() ? "1" : "0",
+    parked_vendors: "",
+    orders_sandbox_locked: "1",
     sync_enabled: s.syncEnabled ? "1" : "0",
     fast_sync_minutes: String(s.fastSyncMinutes),
     full_sync_enabled: s.fullSyncEnabled ? "1" : "0",

@@ -4,8 +4,6 @@
  */
 
 export const DEFAULT_LIVE_MAX_PER_DAY: Record<string, number> = {
-  beautyfort: 20,
-  bts: 48,
   "wholesale-perfumes": 1,
 };
 
@@ -39,7 +37,7 @@ export function resolveLiveMaxPerDay(
   const fromLegacy = asNonNegInt(legacySetting ?? null);
   if (fromLegacy !== null) return fromLegacy;
 
-  return DEFAULT_LIVE_MAX_PER_DAY[vendorSlug] ?? 48;
+  return DEFAULT_LIVE_MAX_PER_DAY[vendorSlug] ?? DEFAULT_LIVE_MAX_PER_DAY["wholesale-perfumes"] ?? 1;
 }
 
 /**
@@ -56,7 +54,7 @@ export function resolveWholesalePerfumesStoreLimits(
   return { maxPerDay: max, minMinutes: min };
 }
 
-/** Legacy setting key for a vendor's catalogue daily cap (008 — beautyfort / bts only). */
+/** Legacy setting key for a vendor's catalogue daily cap. */
 export function legacyLiveMaxSettingKey(vendorSlug: string): string {
   return `${vendorSlug}_live_max_per_day`;
 }

@@ -1,4 +1,6 @@
--- Baseline settings and the two vendors. Re-runnable: INSERT IGNORE never overwrites operator edits.
+-- Baseline settings. Re-runnable: INSERT IGNORE never overwrites operator edits.
+-- Vendor rows: wholesale-perfumes is seeded in 013. Leftover beautyfort/bts rows (if a DB
+-- was copied from retail) are parked by 022 / applyStorefrontProfile.
 
 INSERT IGNORE INTO sil_settings (setting_key, setting_value) VALUES
   -- Pricing. A plain float multiplier: 0.5, 1.2 and 2 are all valid.
@@ -17,7 +19,7 @@ INSERT IGNORE INTO sil_settings (setting_key, setting_value) VALUES
   -- Cap on a single multi-row INSERT. max_allowed_packet is 64M; this leaves generous headroom.
   ('max_statement_bytes',       '4194304'),
 
-  -- Stage 2 safety rails. Every vendor order spends real money and neither API has a sandbox.
+  -- Stage 2 safety rails. Every vendor order spends real money and the API has no sandbox.
   ('orders_dry_run',            '1'),
   ('orders_auto_dispatch',      '0'),
   ('orders_max_value_eur',      '500'),
@@ -25,20 +27,3 @@ INSERT IGNORE INTO sil_settings (setting_key, setting_value) VALUES
   ('orders_poll_minutes',       '15'),
   ('orders_notify_customer',    '1');
 
-INSERT IGNORE INTO sil_vendors
-  (slug, name, sku_prefix, currency, fx_rate, serviceable_countries, order_config, active)
-VALUES
-  (
-    'beautyfort', 'BeautyFort', 'BF', 'EUR', 1.0,
-    -- Confirmed from getAccountInformation: 7 countries, flat EUR rates 7.15-10.65.
-    '["BE","DE","ES","IT","NL","PT","SE"]',
-    '{"orderType":"Direct Dispatch","attemptAutomaticPayment":false}',
-    1
-  ),
-  (
-    'bts', 'BTS Wholesaler', 'BTS', 'EUR', 1.0,
-    -- Confirmed from getCountries: 25 EU states (all but CY and MT) plus CH, GB, MC.
-    '["AT","BE","BG","CZ","DE","DK","EE","ES","FI","FR","GR","HR","HU","IE","IT","LT","LU","LV","NL","PL","PT","RO","SE","SI","SK","CH","GB","MC"]',
-    '{"paymentMethod":"banktransfer","dropshipping":1,"shippingStrategy":"cheapest"}',
-    1
-  );

@@ -10,7 +10,7 @@ import type { OrderAddress } from "./types.ts";
 export interface OrderItem {
   sku: string;
   vendorProductId: string;
-  /** Primary EAN. BTS's order APIs key products by EAN, not by their internal id. */
+  /** Primary EAN when the vendor keys products by barcode. */
   ean: string | null;
   name: string;
   quantity: number;
@@ -54,8 +54,7 @@ export interface VendorOrderDraft {
   /** Customer ship-to (delivery). */
   destination: Destination;
   /**
-   * Company invoice / billing profile. BeautyFort maps this to InvoiceAddress*.
-   * BTS has no billing API fields — adapters still include it in dry-run payloads for ops.
+   * Company invoice / billing profile included on dry-run payloads for ops.
    */
   billing?: Destination & { vat?: string };
   items: OrderItem[];
@@ -74,7 +73,7 @@ export interface VendorOrderResult {
   /** Exact request that would have been / was sent. Recorded for crash recovery. */
   requestPayload: unknown;
   responsePayload: unknown;
-  /** Set when the outcome is genuinely unknown (network error after a BTS submit). */
+  /** Set when the outcome is genuinely unknown (network error after a mutating submit). */
   ambiguous?: boolean;
   error?: string;
 }

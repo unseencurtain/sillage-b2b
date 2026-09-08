@@ -12,17 +12,17 @@ export type FeedSource = "live" | "local" | "cache";
  */
 export interface NormalizedProduct {
   vendorSlug: string;
-  /** BTS: String(id). BeautyFort: StockCode. */
+  /** Vendor product id from the wholesale-perfumes catalog. */
   vendorProductId: string;
   /** `{PREFIX}-{vendorProductId}`. Unique across vendors by construction. */
   sku: string;
-  /** Always an array, always strings. BeautyFort rows carry up to 26; leading zeros matter. */
+  /** Always an array, always strings. Leading zeros matter. */
   eans: string[];
   name: string;
   /** Empty on 100% of records from both vendors today. Kept so `description_mode` can fill it. */
   description: string;
   brand: string | null;
-  /** Keys into the connector's category node set. BTS: numeric ids. BeautyFort: full path. */
+  /** Keys into the connector's category node set. */
   categoryRefs: string[];
   /** Attribute slug -> human label, e.g. `{ gender: 'Women', type: 'Eau de Parfum' }`. */
   attributes: Record<string, string>;
@@ -36,8 +36,7 @@ export interface NormalizedProduct {
 }
 
 /**
- * A node in a vendor's category tree, flattened. Both a numeric ID tree (BTS) and a
- * `>`-delimited text path (BeautyFort) reduce to this, so one resolver handles both.
+ * A node in a vendor's category tree, flattened.
  */
 export interface VendorCategoryNode {
   /** Stable key referenced by `NormalizedProduct.categoryRefs`. */
@@ -50,7 +49,7 @@ export interface VendorCategoryNode {
 /** A price/stock-only update, used by the 30-minute fast sync. */
 export interface PriceStockUpdate {
   vendorProductId: string;
-  /** Vendor SKU / EAN when the delta endpoint provides one (BTS `product_sku`). */
+  /** Vendor SKU / EAN when the delta/store feed provides one. */
   sku?: string;
   price: number;
   recommendedPrice: number | null;

@@ -1,10 +1,10 @@
 /**
  * Interval gates on live vendor API usage (call-based, not a daily download cap).
  *
- * Each vendor is gated independently by `live_feed_min_minutes` since its last live fetch.
- * Daily download counters are recorded for diagnostics but never block a call.
+ * wholesale-perfumes catalogue is gated by `live_feed_min_minutes` since last catalog fetch.
+ * The hourly store XML uses a separate gate so fast syncs are not blocked by the catalog cap.
  */
-import { isWholesaleProfile, sil } from "../config/env.ts";
+import { sil } from "../config/env.ts";
 import { query, type RowDataPacket } from "../db/pool.ts";
 import { loadSettings, loadVendor, setSetting } from "../db/settings.ts";
 import { logger } from "../lib/log.ts";
@@ -121,65 +121,20 @@ async function liveFetchesUsedToday(vendor: CacheVendor): Promise<number> {
   return n ?? 0;
 }
 
-/** Combined BF+BTS cooldown for dashboard buttons and POST /sync/run. */
-export async function getRetailLiveCooldown(): Promise<{
+export type StorefrontLiveCooldown = {
   allow: boolean;
   anyAllow: boolean;
   retryInMinutes: number;
   reason: string;
   cooldownMinutes: number;
   nextAllowedAt: string | null;
-  beautyfort: LiveGateResult & { maxPerDay: number; usedToday: number };
-  bts: LiveGateResult & { maxPerDay: number; usedToday: number };
-}> {
-  const settings = await loadSettings();
-  const cooldownMinutes = settings.liveFeedMinMinutes;
-  const [bfGate, btsGate, bfMax, btsMax, bfUsed, btsUsed] = await Promise.all([
-    checkLiveGate("beautyfort"),
-    checkLiveGate("bts"),
-    catalogueMaxPerDay("beautyfort"),
-    catalogueMaxPerDay("bts"),
-    liveFetchesUsedToday("beautyfort"),
-    liveFetchesUsedToday("bts"),
-  ]);
-  const retryInMinutes = Math.max(bfGate.retryInMinutes, btsGate.retryInMinutes);
-  /** Both vendors may be called now (manual one-off). */
-  const allow = bfGate.allow && btsGate.allow;
-  /** At least one vendor may be called (scheduler should still start). */
-  const anyAllow = bfGate.allow || btsGate.allow;
-  const blockers = [bfGate, btsGate].filter((g) => !g.allow).map((g) => g.reason);
-  const reason = allow
-    ? "live allowed for BeautyFort and BTS"
-    : anyAllow
-      ? `partial: ${blockers.join("; ")}`
-      : blockers.join("; ");
-  const nextAllowedAt =
-    allow || retryInMinutes <= 0
-      ? null
-      : new Date(Date.now() + retryInMinutes * 60_000).toISOString();
-  return {
-    allow,
-    anyAllow,
-    retryInMinutes: allow ? 0 : retryInMinutes,
-    reason,
-    cooldownMinutes,
-    nextAllowedAt,
-    beautyfort: { ...bfGate, maxPerDay: bfMax, usedToday: bfUsed },
-    bts: { ...btsGate, maxPerDay: btsMax, usedToday: btsUsed },
-  };
-}
-
-export type StorefrontLiveCooldown = Awaited<ReturnType<typeof getRetailLiveCooldown>> & {
-  wholesalePerfumes?: LiveGateResult & { maxPerDay: number; usedToday: number };
+  wholesalePerfumes: LiveGateResult & { maxPerDay: number; usedToday: number };
 };
 
 /**
- * Call-interval for this process’s storefront.
- * Retail: BeautyFort + BTS. Wholesale: wholesale-perfumes hourly store feed (price/stock).
+ * Call-interval for this shop: wholesale-perfumes hourly store feed (price/stock).
  */
 export async function getStorefrontLiveCooldown(): Promise<StorefrontLiveCooldown> {
-  if (!isWholesaleProfile()) return getRetailLiveCooldown();
-
   const settings = await loadSettings();
   const cooldownMinutes = settings.liveFeedMinMinutes;
   const [storeGate, catalogMax, catalogUsed] = await Promise.all([
@@ -191,13 +146,6 @@ export async function getStorefrontLiveCooldown(): Promise<StorefrontLiveCooldow
     storeGate.allow || storeGate.retryInMinutes <= 0
       ? null
       : new Date(Date.now() + storeGate.retryInMinutes * 60_000).toISOString();
-  const idle = {
-    allow: true,
-    reason: "parked on this storefront",
-    retryInMinutes: 0,
-    maxPerDay: 0,
-    usedToday: 0,
-  };
   return {
     allow: storeGate.allow,
     anyAllow: storeGate.allow,
@@ -205,8 +153,6 @@ export async function getStorefrontLiveCooldown(): Promise<StorefrontLiveCooldow
     reason: storeGate.reason,
     cooldownMinutes,
     nextAllowedAt,
-    beautyfort: idle,
-    bts: idle,
     wholesalePerfumes: { ...storeGate, maxPerDay: catalogMax, usedToday: catalogUsed },
   };
 }

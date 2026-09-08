@@ -4,7 +4,7 @@
  * Two hazards, both handled explicitly:
  * 1. The cart is account-global mutable state. Concurrent dispatches would merge into one wrong
  *    order. The empty→insert→verify→submit sequence runs under a MariaDB GET_LOCK.
- * 2. There is no client idempotency key (same as BTS). Rails already refuse to re-submit a live
+ * 2. There is no client idempotency key. Rails already refuse to re-submit a live
  *    `submitted` row; a crash mid-submit leaves `needs_attention` and must never auto-retry.
  *
  * Dry-run means *no remote mutation whatsoever* — not even DELETE /cart.

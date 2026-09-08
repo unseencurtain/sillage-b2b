@@ -304,7 +304,6 @@ export async function writePendingProducts(
       OR LOWER(TRIM(thumb.meta_value)) NOT REGEXP '^https?://'
       OR LOWER(thumb.meta_value) LIKE '%no_image%'
       OR LOWER(thumb.meta_value) LIKE '%placeholder%'
-      OR LOWER(thumb.meta_value) LIKE '%beautyfort.com/pic/%'
     )
     AND NOT EXISTS (
       SELECT 1
@@ -400,7 +399,7 @@ function prepare(row: PendingRow, ctx: WriteContext, mode: WriteMode): PreparedP
   if (!vendor) throw new Error(`offer ${row.offer_id} references unknown vendor ${row.vendor_id}`);
 
   const eans = parseJson<string[]>(row.eans, []);
-  // Cross-vendor / override fill on every path — not only BeautyFort thumbs and not only full sync.
+  // Override / EAN fill on every path — not only full sync.
   const imageUrl = ctx.images.resolve(eans, row.image_url);
 
   const pricing = computePricing(

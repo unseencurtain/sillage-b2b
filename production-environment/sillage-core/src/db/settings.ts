@@ -34,12 +34,12 @@ export interface Vendor {
   id: number;
   slug: string;
   name: string;
-  /** Customer-facing label (LPS01 / LPS02 / LPS03). Falls back to name when unset. */
+  /** Customer-facing label. Falls back to name when unset. */
   storefrontLabel: string;
   skuPrefix: string;
   currency: string;
   fxRate: number;
-  /** Fraction uplift before markup. 0 for BF/BTS; wholesale-perfumes may need a confirmed rate. */
+  /** Fraction uplift before markup. wholesale-perfumes may need a confirmed rate. */
   vatRate: number;
   priceMultiplier: number | null;
   minVisibleStock: number | null;

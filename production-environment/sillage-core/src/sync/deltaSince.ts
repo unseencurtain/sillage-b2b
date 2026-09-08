@@ -1,20 +1,10 @@
 /**
- * BTS publishes catalogue changes in a daily batch, not continuously. Asking
- * `getProductChanges` for "since the last successful sync" (often 25–35 minutes,
- * because BeautyFort succeeds on the same combined run) returns an empty list
- * even when hundreds of SKUs changed overnight.
- *
- * Floor the lookback so a quiet window cannot hide a batch. Cap at 29 days —
- * the BTS endpoint rejects anything wider.
+ * Floor the lookback for price/stock deltas so a quiet window cannot hide a batch.
+ * Cap at 29 days.
  */
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-
-/** Minimum lookback per vendor slug. BTS needs ~2 days to cover a missed nightly batch. */
-export const MIN_LOOKBACK_MS: Record<string, number> = {
-  bts: 48 * HOUR,
-};
 
 export const DEFAULT_MIN_LOOKBACK_MS = 6 * HOUR;
 export const MAX_LOOKBACK_MS = 29 * DAY;
@@ -36,9 +26,9 @@ export function resolveDeltaSince(opts: {
   vendorId?: string;
   now?: Date;
 }): Date {
+  void opts.vendorId;
   const now = opts.now ?? new Date();
-  const minMs = (opts.vendorId && MIN_LOOKBACK_MS[opts.vendorId]) || DEFAULT_MIN_LOOKBACK_MS;
-  const floor = new Date(now.getTime() - minMs);
+  const floor = new Date(now.getTime() - DEFAULT_MIN_LOOKBACK_MS);
   const cap = new Date(now.getTime() - MAX_LOOKBACK_MS);
 
   const candidate = parseRunTimestamp(opts.lastSuccessAt);

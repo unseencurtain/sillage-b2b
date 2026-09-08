@@ -12,14 +12,12 @@ Photos are **not** in git. Git has the EAN → URL map and a restore script. The
 
 | Path | Role |
 |---|---|
-| `production-environment/sillage-core/data/image_overrides.json` | Canonical EAN → image URL (~11k keys) |
+| `production-environment/sillage-core/data/image_overrides.json` | Canonical EAN → image URL |
 | `production-environment/sillage-core/data/found-images-manifest.json` | Filenames that must exist on the CDN volume |
-| `python-analysis/beautyfort-enriched/restore_found_images.py` | Copy/download those files onto `ecom_sites/data/media/` |
-| `python-analysis/beautyfort-enriched/fill_missing_shop_images.py` | Re-match from Brasty + CSVs if the map is lost |
-| `python-analysis/beautyfort-enriched/brasty_placeholders.py` | Skip Brasty camera “no photo” graphics |
 
-Hotlinked URLs (Shopify CDN, `images.btswholesaler.com`, oceanfragrances) do **not** need
-to sit on disk. Only `https://images.prinscosmetic.eu/<file>` (or your new CDN host) does.
+Retail BeautyFort restore scripts (`python-analysis/beautyfort-enriched/`) live in
+[unseencurtain/Sillage](https://github.com/unseencurtain/Sillage), not this repo. Copy JPEG bytes
+from the wholesale media volume or rsync.
 
 ---
 
@@ -69,12 +67,8 @@ Optional: the old `~/brasty/` dump is gone on ovhe (2026-09-03). Shop photos res
 4. Restore CDN files into `~/ecom_sites/data/media/`:
 
 ```bash
-# On the new VPS, from a clone of this repo
-python3 production-environment/python-analysis/beautyfort-enriched/restore_found_images.py \
-  --overrides production-environment/sillage-core/data/image_overrides.json \
-  --dest ~/ecom_sites/data/media \
-  --brasty-root /home/ubuntu/brasty \    # if you copied the dump
-  --from-cdn                             # pulls remaining files from images.prinscosmetic.eu
+# On the new VPS: rsync media from the old wholesale host, then:
+# copy image_overrides.json onto wholesale-core/data/
 ```
 
 `--from-cdn` only works while the **old** CDN still answers. If that host is gone, you need

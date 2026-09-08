@@ -158,9 +158,7 @@ export async function runScheduledSync(override?: "full" | "fast"): Promise<Sync
 
   if (settings.syncSource === "live") {
     const cooldown = await getStorefrontLiveCooldown();
-    // Retail: per-vendor gates still skip BeautyFort or BTS inside the run. Do not abort
-    // the whole tick when only one wholesaler is still inside its call interval.
-    // Wholesale: store-feed gate (hourly XML).
+    // Store-feed gate (hourly XML). Skip the tick while cooling.
     if (!cooldown.anyAllow) {
       log.info(
         `tick: skip live ${decision.action} — storefront cooling ${cooldown.retryInMinutes}m (${cooldown.reason})`,

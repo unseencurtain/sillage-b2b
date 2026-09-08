@@ -106,7 +106,6 @@ function confirmDescription(original: Vendor, patch: VendorPatch): string {
 export function Vendors() {
   const { data, isLoading } = useQuery({ queryKey: ["vendors"], queryFn: api.vendors });
   const vendors = data?.vendors ?? [];
-  const wholesale = data?.profile === "wholesale";
   const active = vendors.filter((v) => !v.parked);
 
   return (
@@ -114,9 +113,7 @@ export function Vendors() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Vendors</h1>
         <p className="text-sm text-muted">
-          {wholesale
-            ? "wholesale-perfumes only on this shop. Saving multiplier / FX / VAT / min stock recalculates shop prices from stored offers (no live vendor download). Credentials: "
-            : "BeautyFort + BTS only. How often prices/stock move is on each card below — they are not the same. Saving multiplier / FX / VAT / min stock recalculates shop prices from stored offers (no live vendor download). Credentials: "}
+          wholesale-perfumes only on this shop. Saving multiplier / FX / VAT / min stock recalculates shop prices from stored offers (no live vendor download). Credentials:{" "}
           <Link to="/secrets" className="font-medium text-accent hover:underline">
             Secrets
           </Link>
@@ -404,9 +401,6 @@ function CatalogueSyncPanel({
   const last = lastLiveFetch
     ? `${new Date(lastLiveFetch).toLocaleString("en-GB", { timeZone: "UTC", hour12: false })} UTC`
     : "never";
-  const isBf = slug === "beautyfort";
-  const isBts = slug === "bts";
-  const isWpf = slug === "wholesale-perfumes";
 
   return (
     <div className="mt-4 rounded-lg border border-line bg-canvas/50 p-4">
@@ -418,48 +412,7 @@ function CatalogueSyncPanel({
         </Link>
         ). That is a check interval, not “{callIntervalMinutes} minutes of work a day”.
       </p>
-      {isBf ? (
-        <dl className="mt-3 space-y-2 text-sm">
-          <div>
-            <dt className="font-medium text-ink">Prices and stock</dt>
-            <dd className="text-muted">
-              Every {callIntervalMinutes} minutes. BeautyFort has no “what changed” feed, so each check
-              re-downloads their full stock file (~9k SKUs) and writes whatever moved.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-ink">Full catalogue rebuild</dt>
-            <dd className="text-muted">
-              Routine: Settings → Daily full catalogue rebuild (once per 24 hours after the chosen
-              hour) — new products, prices/stock, and WordPress categories from the ~9k stock file.
-              Manual: Sync → Rebuild catalogue.
-            </dd>
-          </div>
-        </dl>
-      ) : null}
-      {isBts ? (
-        <dl className="mt-3 space-y-2 text-sm">
-          <div>
-            <dt className="font-medium text-ink">Prices and stock</dt>
-            <dd className="text-muted">
-              About once a day on the shop. We check every {callIntervalMinutes} minutes, but BTS only
-              publishes a change list roughly once per day. Empty checks in between are normal. When
-              their daily batch appears, the next check applies it — usually within{" "}
-              {callIntervalMinutes} minutes of them publishing.
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-ink">Full catalogue rebuild (~45k products)</dt>
-            <dd className="text-muted">
-              Routine: Settings → Daily full catalogue rebuild downloads the full ~45k catalogue and
-              creates/updates WordPress categories for every referenced BTS node. Emergency: if more
-              than a quarter of BTS products have not been seen for 7 days, the next 30-minute check
-              also pulls the full catalogue. Manual: Sync → Rebuild catalogue.
-            </dd>
-          </div>
-        </dl>
-      ) : null}
-      {isWpf ? (
+      {slug === "wholesale-perfumes" ? (
         <dl className="mt-3 space-y-2 text-sm">
           <div>
             <dt className="font-medium text-ink">Prices and stock</dt>
@@ -478,10 +431,9 @@ function CatalogueSyncPanel({
             </dd>
           </div>
         </dl>
-      ) : null}
-      {!isBf && !isBts && !isWpf ? (
-        <p className="mt-2 text-sm text-ink">No live feed for this supplier.</p>
-      ) : null}
+      ) : (
+        <p className="mt-2 text-sm text-ink">No live feed for this leftover supplier.</p>
+      )}
       <p className="mt-2 text-xs text-muted">Last live fetch: {last}</p>
     </div>
   );

@@ -205,7 +205,7 @@ docker exec -e MYSQL_PWD="$PW" ecom-db mariadb -uroot earth -e "
 "
 ```
 
-Shopify / BTS / oceanfragrances URLs stay as-is (those files are not on your VPS).
+Hotlinked third-party image URLs stay as-is (those files are not on your VPS).
 
 ### 7. Recreate Sillage containers
 

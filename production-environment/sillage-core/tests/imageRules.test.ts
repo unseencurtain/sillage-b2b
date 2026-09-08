@@ -9,74 +9,61 @@ import {
   thumbsNeedWrite,
 } from "../src/sync/imageRules.ts";
 
-describe("imageRules weak BeautyFort thumbs", () => {
-  const bfPic =
-    "https://www.beautyfort.com/pic/dHNhMzRKNjBiNDA0V2xZRGM5UHhranNEWDVYaTNFdlk%3D";
+describe("imageRules hide-without-image", () => {
+  const real = "https://images.example.com/ok.jpg";
+  const placeholder =
+    "https://images.example.com/imgs/productos_cosmetica/imagenes/no_image.webp";
 
   test("treats Python None/null strings as missing", () => {
     expect(isUnusableImage("None")).toBe(true);
     expect(isUnusableImage("null")).toBe(true);
     expect(shouldHideForMissingImage("None", true)).toBe(true);
     expect(shopImageKey("None")).toBe("");
-    expect(shopImageKey("https://images.btswholesaler.com/ok.jpg")).toBe(
-      "https://images.btswholesaler.com/ok.jpg",
-    );
+    expect(shopImageKey(real)).toBe(real);
   });
 
   test("displayedShopImage trusts Woo meta when it was queried", () => {
-    const feed = "https://images.btswholesaler.com/ok.jpg";
-    expect(displayedShopImage("", feed)).toBeNull();
-    expect(displayedShopImage("None", feed)).toBeNull();
-    expect(displayedShopImage(null, feed)).toBeNull();
-    expect(displayedShopImage(undefined, feed)).toBe(feed);
-    expect(displayedShopImage(feed, null)).toBe(feed);
+    expect(displayedShopImage("", real)).toBeNull();
+    expect(displayedShopImage("None", real)).toBeNull();
+    expect(displayedShopImage(null, real)).toBeNull();
+    expect(displayedShopImage(undefined, real)).toBe(real);
+    expect(displayedShopImage(real, null)).toBe(real);
   });
 
   test("thumbsNeedWrite when Woo holds junk and the feed has a real URL", () => {
-    const feed = "https://images.btswholesaler.com/ok.jpg";
-    expect(thumbsNeedWrite("None", feed)).toBe(true);
-    expect(thumbsNeedWrite("", feed)).toBe(true);
-    expect(thumbsNeedWrite(feed, feed)).toBe(false);
+    expect(thumbsNeedWrite("None", real)).toBe(true);
+    expect(thumbsNeedWrite("", real)).toBe(true);
+    expect(thumbsNeedWrite(real, real)).toBe(false);
     expect(thumbsNeedWrite(null, null)).toBe(false);
   });
 
-  test("flags beautyfort.com/pic URLs as weak", () => {
-    expect(isWeakVendorThumb(bfPic)).toBe(true);
-    expect(isUnusableImage(bfPic)).toBe(true);
+  test("placeholders are unusable", () => {
+    expect(isWeakVendorThumb(placeholder)).toBe(true);
+    expect(isUnusableImage(placeholder)).toBe(true);
   });
 
-  test("hides weak /pic/ thumbs when hide-without-image is on", () => {
-    expect(shouldHideForMissingImage(bfPic, true)).toBe(true);
-    expect(shouldHideForMissingImage(bfPic, false)).toBe(false);
-    expect(
-      shouldHideForMissingImage("https://images.slilverbelt.xyz/9339341005643.jpg", true),
-    ).toBe(false);
+  test("hides placeholders when hide-without-image is on", () => {
+    expect(shouldHideForMissingImage(placeholder, true)).toBe(true);
+    expect(shouldHideForMissingImage(placeholder, false)).toBe(false);
+    expect(shouldHideForMissingImage(real, true)).toBe(false);
   });
 
   test("shopVisibility prefers no-image hide over in-stock", () => {
     expect(
-      shopVisibility({ stock: 1, imageUrl: bfPic, hideWithoutImage: true, stockThreshold: 0 }),
+      shopVisibility({ stock: 1, imageUrl: placeholder, hideWithoutImage: true, stockThreshold: 0 }),
     ).toBe("hidden_no_image");
     expect(
       shopVisibility({
         stock: 1,
-        imageUrl: "https://images.btswholesaler.com/ok.jpg",
+        imageUrl: real,
         hideWithoutImage: true,
         stockThreshold: 0,
       }),
     ).toBe("visible");
     expect(
       shopVisibility({
-        stock: 1,
-        imageUrl: "https://images.btswholesaler.com/imgs/productos_cosmetica/imagenes/no_image.webp",
-        hideWithoutImage: true,
-        stockThreshold: 0,
-      }),
-    ).toBe("hidden_no_image");
-    expect(
-      shopVisibility({
         stock: 0,
-        imageUrl: "https://images.btswholesaler.com/ok.jpg",
+        imageUrl: real,
         hideWithoutImage: true,
         stockThreshold: 0,
       }),
@@ -84,7 +71,7 @@ describe("imageRules weak BeautyFort thumbs", () => {
     expect(
       shopVisibility({
         stock: 1,
-        imageUrl: "https://images.btswholesaler.com/ok.jpg",
+        imageUrl: real,
         hideWithoutImage: true,
         stockThreshold: 0,
         operatorHidden: true,

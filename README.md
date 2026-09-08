@@ -2,7 +2,7 @@
 
 Standalone dropshipping engine for **wholesale-perfumes.eu** only. This repo can deploy its own
 WordPress + dashboard without [unseencurtain/Sillage](https://github.com/unseencurtain/Sillage)
-(BeautyFort + BTS retail).
+(the BeautyFort + BTS retail shop).
 
 | | Live |
 |---|---|
@@ -46,8 +46,8 @@ First shop bring-up: `production-environment/scripts/bootstrap-wholesale.sh`.
 ## Settings → Advanced
 
 Volume filter and description mode apply to this perfume catalogue. Company billing is the
-**wholesale-perfumes** invoice profile used on dry-run dispatch payloads — not BeautyFort/BTS.
+**wholesale-perfumes** invoice profile used on dry-run dispatch payloads.
 
 ## Not this repo
 
-Retail LPS (prinscosmetic.eu, BeautyFort + BTS) stays in **Sillage**. Do not copy those connectors here.
+Retail LPS (prinscosmetic.eu) stays in **Sillage**. Do not copy those connectors here.

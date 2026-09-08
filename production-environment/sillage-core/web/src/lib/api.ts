@@ -86,22 +86,6 @@ export const api = {
       catalogueReady?: boolean;
       scheduleOwnsFastSync?: boolean;
       dailyCapEnabled?: boolean;
-      beautyfort: {
-        allow: boolean;
-        reason: string;
-        retryInMinutes: number;
-        maxPerDay: number;
-        usedToday: number;
-        dailyRemaining: number | null;
-      };
-      bts: {
-        allow: boolean;
-        reason: string;
-        retryInMinutes: number;
-        maxPerDay: number;
-        usedToday: number;
-        dailyRemaining: number | null;
-      };
       wholesalePerfumes?: {
         allow: boolean;
         reason: string;
@@ -221,7 +205,7 @@ export interface Overview {
     hideProductsWithoutImage?: boolean;
     stockThreshold?: number;
   };
-  /** BeautyFort + BTS credential readiness (values never returned). */
+  /** wholesale-perfumes credential readiness (values never returned). */
   secrets?: { ready: boolean; missing: string[] };
 }
 
@@ -241,7 +225,6 @@ export interface SyncRun {
   finished_at?: string | null;
   fetched_by_vendor?: Record<string, number> | null;
   skipped_vendors?: string[];
-  bts_delta?: boolean;
 }
 
 export interface SecretStatus {

@@ -2,9 +2,8 @@
  * Pure pricing and visibility rules. No database imports — unit-testable against DATA-PROFILE edge cases.
  *
  * Storefront price is always cost × multiplier. Cost = vendorPrice × fxRate × (1 + vatRate).
- * Vendor recommended retail (RRP) is ignored: BTS publishes zeros on ~46% of rows and absurd
- * outliers (up to 42,795), so using RRP as a "was/now" strike-through misleads customers and hides
- * the multiplier effect.
+ * Vendor recommended retail (RRP) is ignored: feed RRP is often empty or nonsense, so using it
+ * as a "was/now" strike-through misleads customers and hides the multiplier effect.
  *
  * Multiplier precedence: per-vendor price_multiplier override > matching price tier > global multiplier.
  */

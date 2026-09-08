@@ -109,7 +109,6 @@ export function joinCatalogAndStore(
 
 export class WholesalePerfumesConnector extends VendorConnector {
   readonly slug = "wholesale-perfumes";
-  /** Unused by BF / BTS; storefront label LPS03 is separate. */
   readonly skuPrefix = "WPF";
 
   private categoryNodes = new Map<string, VendorCategoryNode>();

@@ -133,7 +133,7 @@ final class Sillage_Rest {
 		}
 
 		// Blocksy's Ajax category filter dumps a flat brand A–Z; swap those widgets for the
-		// theme-agnostic [sillage_shop_categories] browse list (top-level BF/BTS feed cats).
+		// theme-agnostic [sillage_shop_categories] browse list (top-level feed cats).
 		if ( $this->ensure_shop_category_browse_widgets() ) {
 			$done[] = 'shop_category_browse';
 		}
@@ -233,8 +233,7 @@ final class Sillage_Rest {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->query( "TRUNCATE TABLE {$table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
-		// Retail shop only: index BeautyFort/BTS browse taxonomies. Skip wholesale-perfumes and
-		// anything already exclude-from-catalog so Blocksy's category filter matches /shop.
+		// Index published, catalog-visible products so Blocksy's category filter matches /shop.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$inserted = $wpdb->query(
 			"INSERT INTO {$table} (product_id, taxonomy, term_id)
@@ -245,12 +244,6 @@ final class Sillage_Rest {
 			WHERE p.post_type = 'product'
 			  AND p.post_status = 'publish'
 			  AND tt.taxonomy IN ('product_cat', 'product_brand', 'product_brands')
-			  AND NOT EXISTS (
-			        SELECT 1 FROM {$wpdb->postmeta} pm_wpf
-			         WHERE pm_wpf.post_id = p.ID
-			           AND pm_wpf.meta_key = '_sillage_vendor'
-			           AND pm_wpf.meta_value = 'wholesale-perfumes'
-			      )
 			  AND NOT EXISTS (
 			        SELECT 1
 			          FROM {$wpdb->term_relationships} tr_vis

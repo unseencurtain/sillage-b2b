@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Multi-vendor product sync and order dispatch engine for the Sillage WooCommerce storefront",
+  "description": "Wholesale-perfumes sync engine and operator dashboard (sillage-b2b)",
   "scripts": {
     "dev": "bun run --hot src/server/index.ts",
     "start": "bun run src/server/index.ts",

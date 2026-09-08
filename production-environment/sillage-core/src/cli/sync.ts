@@ -2,7 +2,7 @@
  * Run a sync from the command line. This is what the container's cron invokes.
  *
  *   bun run sync -- --mode=full --source=local
- *   bun run sync -- --mode=fast --source=live --vendor=bts
+ *   bun run sync -- --mode=fast --source=live --vendor=wholesale-perfumes
  *   bun run sync -- --mode=full --source=local --dry-run
  *   bun run sync -- --mode=full --source=local --redrive
  *   bun run sync -- --mode=full --source=local --rewrite-all

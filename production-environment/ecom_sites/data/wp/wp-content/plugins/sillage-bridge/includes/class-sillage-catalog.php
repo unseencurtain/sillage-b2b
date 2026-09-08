@@ -1,6 +1,6 @@
 <?php
 /**
- * Storefront catalog helpers for the LPS retail shop (BeautyFort + BTS).
+ * Storefront catalog helpers for the wholesale-perfumes shop.
  *
  * @package Sillage_Bridge
  */
@@ -19,9 +19,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Marketplace connectors treat product categories as browse taxonomy; LPS01/LPS02/LPS03 must not
  * appear there.
  *
- * Dual-catalog / B2B wholesale UI lived here briefly and was removed: wholesale-perfumes is
- * parked for a separate site (`b2b-wholesale/` in the repo). WPF products are hidden via
- * WooCommerce `product_visibility` from sillage-core, not via vendor-meta query hacks.
+ * Dual-catalog / B2B wholesale UI lived here briefly and was removed: this WordPress *is*
+ * the wholesale-perfumes shop. Vendor identity is `_sillage_vendor` postmeta only.
  *
  * Legacy LPS* `product_cat` terms (from an earlier mistaken lane) are stripped from category
  * widgets / `get_terms` / nav if they still exist. Empty feed categories are hidden too.
@@ -49,7 +48,7 @@ final class Sillage_Catalog {
 	}
 
 	/**
-	 * Soft-cap external vendor images so a tiny BF thumb cannot stretch a card.
+	 * Soft-cap external vendor images so a tiny thumb cannot stretch a card.
 	 * Root fix is sync-time image resolution; this is a theme-agnostic safety net.
 	 */
 	public function enqueue_image_safety_css(): void {
@@ -72,7 +71,7 @@ final class Sillage_Catalog {
 	}
 
 	/**
-	 * Top-level feed browse categories for the retail shop sidebar (BF/BTS counts).
+	 * Top-level feed browse categories for the wholesale shop sidebar.
 	 *
 	 * Reads `wp_term_taxonomy.count` directly — WooCommerce's `wc_change_term_counts`
 	 * zeroes get_terms() counts outside a product loop, which emptied this list.

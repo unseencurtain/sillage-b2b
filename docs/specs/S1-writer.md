@@ -98,7 +98,7 @@ silently returns nothing.
 
 ### 6. `sillage.sil_ean_index`
 
-Delete by `wp_post_id`, bulk insert the product's EANs. BeautyFort rows carry up to 26.
+Delete by `wp_post_id`, bulk insert the product's EANs.
 
 ## End of run, once — not per batch
 

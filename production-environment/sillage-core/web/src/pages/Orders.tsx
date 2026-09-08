@@ -187,10 +187,7 @@ export function Orders() {
     settingsQ.data?.orders_dry_run === undefined
       ? true
       : settingsQ.data.orders_dry_run === "1" || settingsQ.data.orders_dry_run === "true";
-  const sandboxLocked =
-    settingsQ.data?.sillage_profile === "wholesale" ||
-    settingsQ.data?.orders_sandbox_locked === "1" ||
-    settingsQ.data?.orders_sandbox_locked === "true";
+  const sandboxLocked = true;
 
   const detailData = detail.data;
   const order = detailData?.order;
@@ -564,8 +561,8 @@ export function Orders() {
                     </div>
                   </div>
                   <p className="mb-2 text-xs text-muted">
-                    BeautyFort: invoice address. BTS: account invoice is portal-side; still shown in dry-run
-                    payload.
+                    Invoice / company address sent on wholesale-perfumes dry-run payloads. Live
+                    submit stays locked.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {BILLING_FIELDS.map((f) => (

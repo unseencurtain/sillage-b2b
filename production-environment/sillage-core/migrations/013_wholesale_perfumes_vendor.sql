@@ -5,8 +5,7 @@
 -- Repair a stray pre-rename row if present (never DELETE).
 UPDATE sil_vendors SET slug = 'wholesale-perfumes', sku_prefix = 'WPF' WHERE slug = 'ocean';
 
--- Ex-VAT prices need a vendor-level VAT uplift before markup tiers. Default 0 leaves
--- BeautyFort and BTS numbers unchanged.
+-- Ex-VAT prices need a vendor-level VAT uplift before markup tiers. Default 0.
 ALTER TABLE sil_vendors
   ADD COLUMN vat_rate DECIMAL(6,4) NOT NULL DEFAULT 0.0000
     COMMENT 'Fraction added to vendor_price before markup: cost = price × fx × (1+vat_rate)'

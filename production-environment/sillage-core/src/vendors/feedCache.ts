@@ -1,8 +1,8 @@
 /**
  * Persistent vendor feed cache.
  *
- * Live downloads are expensive (BeautyFort ~40 SOAP calls/day; BTS is heavily paginated).
- * Once a feed is fetched we keep it on disk and reuse it until the live gate allows a refresh.
+ * Live wholesale-perfumes XML downloads are rate-limited. Once a feed is fetched we keep it
+ * on disk and reuse it until the live gate allows a refresh.
  */
 import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ import { logger } from "../lib/log.ts";
 
 const log = logger("feed-cache");
 
-export type CacheVendor = "beautyfort" | "bts" | "wholesale-perfumes";
+export type CacheVendor = "wholesale-perfumes";
 
 interface CacheMeta {
   vendor: CacheVendor;
@@ -31,7 +31,7 @@ function metaPath(vendor: CacheVendor): string {
   return join(cacheDir(vendor), "meta.json");
 }
 
-/** Optional envelope so BTS can persist categories and wholesale-perfumes can persist the store feed. */
+/** Envelope so wholesale-perfumes can persist catalog products plus the store feed. */
 export type FeedCachePayload =
   | unknown[]
   | { products: unknown[]; categories?: unknown[]; store?: unknown[] };

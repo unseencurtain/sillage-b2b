@@ -50,18 +50,14 @@ export function thumbsNeedWrite(
   return shopImageKey(wooThumb) !== shopImageKey(resolved);
 }
 
-/** BeautyFort's /pic/ CDN serves tiny thumbs — treat as replaceable when a better URL exists. */
+/** Empty or placeholder URL — not fit for the storefront. */
 export function isWeakVendorThumb(url: string | null | undefined): boolean {
-  if (!url) return true;
-  if (isPlaceholderImage(url)) return true;
-  const low = url.toLowerCase();
-  // Encoded `/pic/<token>` thumbs (often URL-encoded `=` → `%3D`) and any beautyfort.com/pic/ path.
-  return low.includes("beautyfort.com/pic/") || /beautyfort\.com\/pic\b/.test(low);
+  return isPlaceholderImage(url);
 }
 
-/** Empty, placeholder, or known-weak vendor thumb — not fit for the storefront. */
+/** Empty or placeholder — not fit for the storefront. */
 export function isUnusableImage(url: string | null | undefined): boolean {
-  return isPlaceholderImage(url) || isWeakVendorThumb(url);
+  return isPlaceholderImage(url);
 }
 
 /** Strip junk so EAN maps match across vendors (leading zeros, quoted barcodes). */
@@ -89,8 +85,8 @@ export function resolveImageUrl(
       return hit;
     }
   }
-  // Still empty / placeholder / weak BF thumb with no better source — clear so
-  // hide_products_without_image can exclude the product instead of serving a tiny /pic/ URL.
+  // Still empty / placeholder with no better source — clear so hide_products_without_image
+  // can exclude the product instead of serving a junk URL.
   return isUnusableImage(current) ? null : current;
 }
 

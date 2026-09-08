@@ -15,8 +15,7 @@ export abstract class VendorConnector {
   abstract readonly skuPrefix: string;
 
   /**
-   * Load anything `normalize` depends on — most importantly the category tree, which BTS needs in
-   * order to derive gender (its own `gender` field is 98.4% "unisex" and therefore useless).
+   * Load anything `normalize` depends on — most importantly the category tree.
    */
   abstract prepare(source: FeedSource, progress?: ProgressFn): Promise<void>;
 
@@ -30,14 +29,13 @@ export abstract class VendorConnector {
   abstract categories(): VendorCategoryNode[];
 
   /**
-   * Cheap price/stock delta, when the vendor offers one. BTS has `getProductChanges`; BeautyFort
-   * does not, so the fast sync falls back to a full fetch and a local checksum diff.
+   * Cheap price/stock delta, when the vendor offers one. wholesale-perfumes uses the hourly store XML.
    */
   fetchPriceStock?(since: Date, progress?: ProgressFn): Promise<PriceStockUpdate[] | null>;
 
   /**
-   * Hydrate a small set of SKUs into normalized products (BTS `getProducts`, 25/call).
-   * Used to import SKUs that appear in a delta but have no offer row yet.
+   * Hydrate a small set of SKUs into normalized products.
+   * Used to import SKUs that appear in a store-feed delta but have no offer row yet.
    */
   fetchNormalizedBySkus?(skus: string[], progress?: ProgressFn): Promise<NormalizedProduct[]>;
 

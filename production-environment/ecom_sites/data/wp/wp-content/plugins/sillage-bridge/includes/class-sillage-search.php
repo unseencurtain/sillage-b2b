@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * A default WordPress search runs a LIKE over post_title and post_content, which for a barcode
  * matches nothing and is slow about it. Barcodes live in sillage.sil_ean_index, one row per EAN
- * per product — BeautyFort products carry up to 26 EANs each, so they cannot be held in a single
+ * per product. Multiple EANs cannot be held in a single postmeta row and searched reliably.
  * postmeta row and searched reliably.
  *
  * Runs on the storefront and in wp-admin. Everywhere else, a barcode search falls through to the

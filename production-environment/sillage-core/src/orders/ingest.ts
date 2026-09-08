@@ -239,9 +239,8 @@ export async function resolveVendorLines(
 /**
  * Our reference for a vendor order.
  *
- * The vendor suffix is load-bearing. A mixed cart produces one row per vendor, and BeautyFort
- * treats this string as an idempotency key that must be unique forever — two rows sharing
- * `SIL-1234` would collide both in `sil_vendor_orders.uniq_reference` and at the vendor.
+ * The vendor suffix is load-bearing. A mixed cart would produce one row per vendor, and the
+ * uniqueness of `SIL-{wc}-{PREFIX}` is what keeps ingest idempotent.
  */
 export function orderReference(wcOrderId: number, skuPrefix: string): string {
   return `SIL-${wcOrderId}-${skuPrefix.toUpperCase()}`;

@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 
 const nav = [
   { to: "/", label: "Overview", icon: LayoutDashboard, end: true },
@@ -27,21 +26,13 @@ const nav = [
 
 export function Layout() {
   const navigate = useNavigate();
-  const { data: settings } = useQuery({
-    queryKey: ["settings"],
-    queryFn: api.settings,
-    staleTime: 60_000,
-  });
-  const wholesale = settings?.sillage_profile === "wholesale";
 
   return (
     <div className="flex min-h-screen">
       <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-sidebar text-sidebar-ink">
         <div className="border-b border-white/10 px-5 py-5">
           <div className="text-lg font-semibold tracking-tight text-white">Sillage</div>
-          <div className="mt-0.5 text-xs text-white/50">
-            {wholesale ? "wholesale · sandbox" : "vendor sync · ops"}
-          </div>
+          <div className="mt-0.5 text-xs text-white/50">wholesale · sandbox</div>
         </div>
         <nav className="flex-1 space-y-1 p-3">
           {nav.map(({ to, label, icon: Icon, end }) => (

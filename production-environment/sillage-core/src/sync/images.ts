@@ -1,12 +1,12 @@
 /**
- * Resolve better product images when a vendor (especially BeautyFort) ships placeholders.
+ * Resolve better product images when a vendor ships placeholders.
  *
  * Priority for a given EAN:
- *   1. data/image_overrides.json (hand-curated + wholesale-perfumes/shopify/oceanfragrances matches from the prior enricher)
- *   2. Another vendor's offer image for the same EAN (usually BTS)
+ *   1. data/image_overrides.json (hand-curated matches)
+ *   2. Another offer's usable photo for the same EAN
  *
- * Cross-vendor fill runs for every product whose current URL is missing, a placeholder, or a
- * weak BeautyFort thumb — on both full and fast sync paths (caller must invoke resolve()).
+ * Fill runs for every product whose current URL is missing or a placeholder —
+ * on both full and fast sync paths (caller must invoke resolve()).
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -55,8 +55,7 @@ export function loadImageOverrides(root = process.cwd()): Map<string, string> {
 
 /** Build EAN → image from non-vanished offers that already have a real URL.
 
-  Indexes **every** barcode on the offer, not only `primary_ean`. A BeautyFort
-  row whose extra EAN matches a BTS photo would otherwise stay hidden.
+  Indexes **every** barcode on the offer, not only `primary_ean`.
  */
 export async function loadOfferImageIndex(): Promise<Map<string, string>> {
   const rows = await query<

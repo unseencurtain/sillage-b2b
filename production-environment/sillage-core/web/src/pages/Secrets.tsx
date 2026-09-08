@@ -7,9 +7,6 @@ import { useToast } from "@/components/Toast";
 import { cn } from "@/lib/utils";
 
 const HELP: Record<string, string> = {
-  BEAUTYFORT_USER: "BeautyFort SOAP username for catalogue + order APIs.",
-  BEAUTYFORT_SECRET: "BeautyFort SOAP password/secret. Never shown after save.",
-  BTS_JWT_TOKEN: "BTS Wholesaler JWT from their portal. Powers catalogue + dispatch.",
   WHOLESALE_PERFUMES_USER: "wholesale-perfumes.eu (SoleLuna) API username.",
   WHOLESALE_PERFUMES_TOKEN: "wholesale-perfumes.eu API token. Never shown after save.",
 };

@@ -31,9 +31,7 @@ export function normalizeVolume(raw: string | undefined, mode: VolumeFilterMode)
  * `vendor.storefrontLabel` from the database everywhere storefront-facing copy is emitted.
  */
 export const VENDOR_LABELS: Record<string, string> = {
-  beautyfort: "LPS02",
-  bts: "LPS01",
-  "wholesale-perfumes": "LPS03",
+  "wholesale-perfumes": "Wholesale",
 };
 
 export function vendorStorefrontLabel(vendor: { slug: string; storefrontLabel?: string; name: string }): string {

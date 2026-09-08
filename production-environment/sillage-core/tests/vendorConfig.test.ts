@@ -82,20 +82,17 @@ describe("parseVendorPatch", () => {
 
 describe("resolveLiveMaxPerDay", () => {
   test("prefers the vendor row over legacy settings", () => {
-    expect(resolveLiveMaxPerDay("beautyfort", { liveMaxPerDay: 7 }, 20)).toBe(7);
     expect(resolveLiveMaxPerDay("wholesale-perfumes", { liveMaxPerDay: 1 }, 99)).toBe(1);
   });
 
   test("falls back to legacy setting when row is null / unset", () => {
-    expect(resolveLiveMaxPerDay("bts", { liveMaxPerDay: null }, 48)).toBe(48);
-    expect(resolveLiveMaxPerDay("bts", null, 12)).toBe(12);
+    expect(resolveLiveMaxPerDay("wholesale-perfumes", { liveMaxPerDay: null }, 4)).toBe(4);
+    expect(resolveLiveMaxPerDay("wholesale-perfumes", null, 12)).toBe(12);
   });
 
   test("falls back to built-in defaults when both are missing", () => {
-    expect(resolveLiveMaxPerDay("beautyfort", null, null)).toBe(20);
-    expect(resolveLiveMaxPerDay("bts", { liveMaxPerDay: null }, null)).toBe(48);
     expect(resolveLiveMaxPerDay("wholesale-perfumes", null, undefined)).toBe(1);
-    expect(DEFAULT_LIVE_MAX_PER_DAY.beautyfort).toBe(20);
+    expect(DEFAULT_LIVE_MAX_PER_DAY["wholesale-perfumes"]).toBe(1);
   });
 });
 
