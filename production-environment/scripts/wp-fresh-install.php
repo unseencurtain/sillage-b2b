@@ -50,6 +50,10 @@ update_option('permalink_structure', '/%postname%/');
 update_option('woocommerce_coming_soon', 'no');
 update_option('woocommerce_onboarding_profile', array('skipped' => true));
 
+// Activation belongs to the operator: they upload the paid Blocksy companion, activate what they
+// want and customise the shop before any products exist. WP_ACTIVATE_PLUGINS=1 is for an
+// unattended install that has to come up serving.
+$activate = getenv('WP_ACTIVATE_PLUGINS') === '1';
 foreach (array(
     'woocommerce/woocommerce.php',
     'redis-cache/redis-cache.php',
@@ -60,13 +64,21 @@ foreach (array(
         echo "$p missing\n";
         continue;
     }
+    if (!$activate) {
+        echo $p . " present, left inactive for the operator\n";
+        continue;
+    }
     $res = activate_plugin($p);
-    echo $p . (is_wp_error($res) ? (' FAIL ' . $res->get_error_message()) : ' ok') . PHP_EOL;
+    echo $p . (is_wp_error($res) ? (' FAIL ' . $res->get_error_message()) : ' activated') . PHP_EOL;
 }
 
 if (function_exists('wp_get_theme') && wp_get_theme('blocksy')->exists()) {
-    switch_theme('blocksy');
-    echo "theme=blocksy\n";
+    if ($activate) {
+        switch_theme('blocksy');
+        echo "theme=blocksy activated\n";
+    } else {
+        echo "theme=blocksy present, left for the operator to activate\n";
+    }
 }
 
 update_option('woocommerce_custom_orders_table_enabled', 'yes');

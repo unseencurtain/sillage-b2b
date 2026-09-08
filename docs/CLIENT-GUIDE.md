@@ -23,6 +23,13 @@ can be finished first — pages, menus, theme, shipping. Until one import has su
 schedule declines every check with *no sync has ever succeeded — start the first import from
 the dashboard*. Pressing **Rebuild catalogue** is what starts it.
 
+**A brand-new shop also arrives with its plugins switched off**, so you can style it before any
+products exist. In WordPress → Plugins activate WooCommerce, Sillage Bridge and Redis Object
+Cache, activate the theme under Appearance, then set up pages, menus and shipping. Tell your
+engineer when you are done so they can run the readiness check, and only then press **Rebuild
+catalogue**. WooCommerce must be active first: activating it is what creates the tables the
+products go into.
+
 ---
 
 ## 2. Settings

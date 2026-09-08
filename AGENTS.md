@@ -37,6 +37,20 @@ Wiping a VPS and standing the wholesale shop up again? These are settled. The re
   killer takes Apache mid-import. The script creates 4 GB if it is missing.
 - **A Hub tag says nothing about its WordPress.** The script compares the image's bundled
   version against the Dockerfile pin and refuses a mismatch.
+- **Plugins and the theme ship inactive.** The operator activates them and customises the shop
+  before any products exist; `wp-fresh-install.php` only activates with `WP_ACTIVATE_PLUGINS=1`.
+  Activating WooCommerce is what creates the tables products land in, so it has to precede the
+  first import.
+- **Verify before the first import.** After the operator is done:
+
+  ```bash
+  ./production-environment/scripts/deploy-vps.sh --host ovh \
+    --shop wholesale.codeinmoon.xyz --dash sillage-wholesale.codeinmoon.xyz --finish
+  ```
+
+  It repairs the options the engine and orders depend on, reports activation without changing
+  it, and must show `sillage db  sillage_wpf`. Reading `sillage` there means the bridge is
+  pointed at the retail database, which is how a whole wholesale shop once failed silently.
 
 **Operator dashboard:** [`docs/OPERATOR-DASHBOARD.md`](docs/OPERATOR-DASHBOARD.md).
 **Client how-to:** [`docs/CLIENT-GUIDE.md`](docs/CLIENT-GUIDE.md) — keep it in sync with UI changes.

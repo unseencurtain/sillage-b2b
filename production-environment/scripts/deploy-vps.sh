@@ -42,6 +42,7 @@ CLONE_FROM=""
 WITH_WORDPRESS=1
 KEEP_CADDY=""
 SKIP_DNS_CHECK=0
+FINISH=0
 DASH_USER=""
 WP_USER=""
 
@@ -71,6 +72,7 @@ while [[ $# -gt 0 ]]; do
     --images) IMAGES_DOMAIN="${2:?}"; shift 2 ;;
     --dns) DO_DNS=1; shift ;;
     --skip-dns-check) SKIP_DNS_CHECK=1; shift ;;
+    --finish) FINISH=1; shift ;;
     --dash-user) DASH_USER="${2:?}"; check_operator --dash-user "$DASH_USER"; shift 2 ;;
     --wp-user) WP_USER="${2:?}"; check_operator --wp-user "$WP_USER"; shift 2 ;;
     --ip) IP="${2:?}"; shift 2 ;;
@@ -112,6 +114,14 @@ SSH=(ssh -F "${HOME}/.ssh/config" -o BatchMode=yes)
 SCP=(scp -F "${HOME}/.ssh/config" -o BatchMode=yes)
 RSYNC=(rsync -az -e "ssh -F ${HOME}/.ssh/config -o BatchMode=yes")
 REMOTE_DIR=sillage-wholesale
+
+# Fail on the tool, not on a bare "command not found" 200 lines in.
+for _tool in ssh rsync; do
+  command -v "$_tool" >/dev/null || {
+    echo "$_tool is not installed — this script copies the stack to the VPS with it" >&2
+    exit 1
+  }
+done
 CHRONO="$ROOT/.deploy/deploy-CHRONOLOGY.md"
 mkdir -p "$ROOT/.deploy"
 CREDS="$ROOT/.deploy/vps-dashboard-${HOST}.txt"
@@ -167,6 +177,17 @@ pick_domain() {
 }
 
 SHOP_DOMAIN="$(pick_domain "$CLI_SHOP" "$_R_SHOP" "$LOCAL_SHOP" "$DEFAULT_SHOP_DOMAIN")"
+
+if [[ "$FINISH" -eq 1 ]]; then
+  # Stage after the operator activates plugins and customises the shop: verify and repair the
+  # settings the engine and orders depend on, then report. Activation is never changed here.
+  echo "==> readiness check on ${HOST} (${SHOP_DOMAIN})"
+  "${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/scripts"
+  "${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
+  "${SSH[@]}" "$HOST" "docker cp ~/${REMOTE_DIR}/scripts/wp-readiness.php wholesale-ecom:/tmp/wp-readiness.php >/dev/null && docker exec -e SHOP_DOMAIN='${SHOP_DOMAIN}' -e WP_READINESS_FIX=1 wholesale-ecom php /tmp/wp-readiness.php"
+  exit $?
+fi
+
 DASH_DOMAIN="$(pick_domain "$CLI_DASH" "$_R_DASH" "$LOCAL_DASH" "$DEFAULT_DASH_DOMAIN")"
 if [[ -n "${CLI_IMAGES}" ]]; then
   echo "NOTE: --images is ignored. Wholesale photos are vendor flask_front URLs. ~/ecom_sites/data/media is the Sillage retail CDN."
@@ -303,6 +324,7 @@ echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
   "$PE/ecom_sites/config/" "$HOST:~/${REMOTE_DIR}/ecom_sites/config/"
 "${RSYNC[@]}" "$PE/scripts/vps-bootstrap.sh" "$HOST:~/${REMOTE_DIR}/scripts/vps-bootstrap.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-config-patch.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-config-patch.php"
+"${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
 "${RSYNC[@]}" "$PE/scripts/build-push-images.sh" "$HOST:~/${REMOTE_DIR}/scripts/build-push-images.sh"
 "${RSYNC[@]}" "$PE/scripts/fix-wp-content-perms.sh" "$HOST:~/${REMOTE_DIR}/scripts/fix-wp-content-perms.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-fresh-install.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-fresh-install.php"
