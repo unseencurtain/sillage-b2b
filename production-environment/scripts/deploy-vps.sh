@@ -13,7 +13,7 @@
 #       [--skip-build] [--fresh] [--core-only] [--keep-caddy] [--replace-caddy]
 #
 # Product photos are wholesale-perfumes catalog flask_front URLs. There is no
-# images.* CDN and no wholesale-media container. ~/ecom_sites/data/media is Sillage.
+# images.* CDN and no wholesale-media container. ~/sillage/data/media is Sillage's.
 #
 # Flow (empty Ubuntu VPS — this is the default path):
 #   0) Once, as root: bootstrap-host.sh (Docker, Caddy, ubuntu, unzip)
@@ -201,7 +201,7 @@ fi
 
 DASH_DOMAIN="$(pick_domain "$CLI_DASH" "$_R_DASH" "$LOCAL_DASH" "$DEFAULT_DASH_DOMAIN")"
 if [[ -n "${CLI_IMAGES}" ]]; then
-  echo "NOTE: --images is ignored. Wholesale photos are vendor flask_front URLs. ~/ecom_sites/data/media is the Sillage retail CDN."
+  echo "NOTE: --images is ignored. Wholesale photos are vendor flask_front URLs. ~/sillage/data/media is the Sillage retail CDN."
 fi
 IMAGES_DOMAIN=""
 
@@ -362,7 +362,7 @@ if [[ "$SKIP_BUILD" -eq 1 ]]; then
 fi
 
 echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
-"${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/ecom_sites/config ~/${REMOTE_DIR}/sillage-core/data ~/${REMOTE_DIR}/sillage-core/logs ~/${REMOTE_DIR}/wp-staging ~/ecom_sites/data/sitemaps ~/${REMOTE_DIR}/.feedscratch ~/${REMOTE_DIR}/scripts"
+"${SSH[@]}" "$HOST" "mkdir -p ~/${REMOTE_DIR}/ecom_sites/config ~/${REMOTE_DIR}/sillage-core/data ~/${REMOTE_DIR}/sillage-core/logs ~/${REMOTE_DIR}/wp-staging ~/${REMOTE_DIR}/data/sitemaps ~/${REMOTE_DIR}/.feedscratch ~/${REMOTE_DIR}/scripts"
 
 "${RSYNC[@]}" "$PE/compose.yaml" "$HOST:~/${REMOTE_DIR}/compose.yaml"
 "${RSYNC[@]}" "$PE/.env.example" "$HOST:~/${REMOTE_DIR}/.env.example"
@@ -372,6 +372,10 @@ echo "==> rsync compose/config/plugin → ${HOST}:~/${REMOTE_DIR}"
 "${RSYNC[@]}" "$PE/scripts/wp-config-patch.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-config-patch.php"
 "${RSYNC[@]}" "$PE/scripts/wp-readiness.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-readiness.php"
 "${RSYNC[@]}" "$PE/scripts/apply-grants.sh" "$HOST:~/${REMOTE_DIR}/scripts/apply-grants.sh"
+"${RSYNC[@]}" "$PE/scripts/wp-finalize.sh" "$HOST:~/${REMOTE_DIR}/scripts/wp-finalize.sh"
+# Retail installed a cron for this and then never copied the script, so its log was three lines
+# of "No such file or directory". Copy it before anything schedules it.
+"${RSYNC[@]}" "$PE/scripts/write-sitemaps.py" "$HOST:~/${REMOTE_DIR}/scripts/write-sitemaps.py"
 "${RSYNC[@]}" "$PE/scripts/build-push-images.sh" "$HOST:~/${REMOTE_DIR}/scripts/build-push-images.sh"
 "${RSYNC[@]}" "$PE/scripts/fix-wp-content-perms.sh" "$HOST:~/${REMOTE_DIR}/scripts/fix-wp-content-perms.sh"
 "${RSYNC[@]}" "$PE/scripts/wp-fresh-install.php" "$HOST:~/${REMOTE_DIR}/scripts/wp-fresh-install.php"
@@ -386,7 +390,7 @@ fi
   "$PE/ecom_sites/data/wp/wp-content/plugins/sillage-bridge/" \
   "$HOST:~/${REMOTE_DIR}/wp-staging/sillage-bridge/"
 # Keep a zero-byte php.ini if missing so the bind mount succeeds.
-"${SSH[@]}" "$HOST" "touch ~/${REMOTE_DIR}/ecom_sites/config/php.ini; mkdir -p ~/ecom_sites/data/sitemaps; touch ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env; [[ -f ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json ]] || echo '{}' > ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json; chmod 600 ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env"
+"${SSH[@]}" "$HOST" "touch ~/${REMOTE_DIR}/ecom_sites/config/php.ini; mkdir -p ~/${REMOTE_DIR}/data/sitemaps; touch ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env; [[ -f ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json ]] || echo '{}' > ~/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json; chmod 600 ~/${REMOTE_DIR}/sillage-core/data/secrets.overlay.env"
 log_step "Minimal rsync done"
 
 if [[ -n "$CLONE_FROM" ]]; then
@@ -438,7 +442,7 @@ WORDPRESS_IMAGE=${WP_IMAGE}
 MARIADB_IMAGE=mariadb:latest
 VALKEY_IMAGE=valkey/valkey:8-alpine
 
-DATA_DIR=/home/ubuntu/ecom_sites/data
+DATA_DIR=/home/ubuntu/${REMOTE_DIR}/data
 FEEDSCRATCH_DIR=/home/ubuntu/${REMOTE_DIR}/.feedscratch
 SILLAGE_LOGS_DIR=/home/ubuntu/${REMOTE_DIR}/sillage-core/logs
 IMAGE_OVERRIDES_FILE=/home/ubuntu/${REMOTE_DIR}/sillage-core/data/image_overrides.wpf.json
@@ -446,7 +450,7 @@ SILLAGE_SECRETS_FILE=/home/ubuntu/${REMOTE_DIR}/sillage-core/data/secrets.overla
 MARIADB_CNF=/home/ubuntu/${REMOTE_DIR}/ecom_sites/config/mariadb.wholesale.cnf
 PHP_INI=/home/ubuntu/${REMOTE_DIR}/ecom_sites/config/php.ini
 APACHE_HIDE_CONF=/home/ubuntu/${REMOTE_DIR}/ecom_sites/config/apache-hide-version.conf
-SITEMAP_HOST_DIR=/home/ubuntu/ecom_sites/data/sitemaps
+SITEMAP_HOST_DIR=/home/ubuntu/${REMOTE_DIR}/data/sitemaps
 
 DB_BIND=127.0.0.1
 DB_HOST_PORT=3308
@@ -516,7 +520,8 @@ else
   # Non-empty local values win; empty local values leave remote secrets untouched.
   "${SSH[@]}" "$HOST" "SHOP_DOMAIN='$SHOP_DOMAIN' DASH_DOMAIN='$DASH_DOMAIN' IMAGES_DOMAIN='$IMAGES_DOMAIN' CORE_IMAGE='$CORE_IMAGE' WP_IMAGE='$WP_IMAGE' WITH_WORDPRESS='$WITH_WORDPRESS' LOCAL_WPF_USER='${WHOLESALE_PERFUMES_USER:-}' LOCAL_WPF_TOKEN='${WHOLESALE_PERFUMES_TOKEN:-}' LOCAL_WPF_CATALOG='${WHOLESALE_PERFUMES_CATALOG_URL:-}' LOCAL_WPF_STOCK='${WHOLESALE_PERFUMES_STOCK_URL:-}' LOCAL_WPF_API='${WHOLESALE_PERFUMES_API_BASE_URL:-}' LOCAL_BRASTY_PRODUCT='${BRASTY_PRODUCT_FEED_URL:-}' LOCAL_BRASTY_AVAIL='${BRASTY_AVAILABILITY_FEED_URL:-}' python3 -" <<'PY'
 import os, pathlib, re
-p = pathlib.Path.home() / "sillage-wholesale" / ".env"
+STACK = "sillage-wholesale"
+p = pathlib.Path.home() / STACK / ".env"
 text = p.read_text()
 def set_key(text, key, value):
     if value is None:
@@ -533,7 +538,11 @@ pairs = [
     ("SHOP_DOMAIN", shop),
     ("DASH_DOMAIN", dash),
     ("WP_BASE_URL", f"https://{shop}"),
-    ("SITEMAP_HOST_DIR", "/home/ubuntu/ecom_sites/data/sitemaps"),
+    # Both were once /home/ubuntu/ecom_sites/data, from when wholesale shared the retail box's
+    # directory. On a two-stack box that is a third directory belonging to neither stack, and the
+    # sitemaps Caddy serves went to it. Corrected on update so existing boxes move with a deploy.
+    ("DATA_DIR", f"/home/ubuntu/{STACK}/data"),
+    ("SITEMAP_HOST_DIR", f"/home/ubuntu/{STACK}/data/sitemaps"),
     ("WHOLESALE_PERFUMES_USER", os.environ.get("LOCAL_WPF_USER") or None),
     ("WHOLESALE_PERFUMES_TOKEN", os.environ.get("LOCAL_WPF_TOKEN") or None),
     ("WHOLESALE_PERFUMES_CATALOG_URL", os.environ.get("LOCAL_WPF_CATALOG") or None),
@@ -839,6 +848,29 @@ if ! swapon --show | grep -q '^/swapfile'; then
   sudo sysctl -p /etc/sysctl.d/99-sillage-swap.conf >/dev/null
 fi
 swapon --show
+
+# Wholesale had no sitemap cron at all, so wholesale.codeinmoon.xyz/wp-sitemap.xml served a 403
+# over a 19,065-product catalogue: the engine writes these on a full sync, and nothing rebuilt
+# them in between. Pass the directory and base URL explicitly — the script defaults to the live
+# box's layout and the retail domain, and cron has none of the deploy environment, so getting
+# either wrong is silent. Match this stack's own path: a bare-filename guard would see retail's
+# entry on a shared box and skip this one.
+SITEMAP_ENV="SITEMAP_HOST_DIR=${SITEMAP_HOST_DIR:-${DATA_DIR}/sitemaps} WP_BASE_URL=https://${SHOP_DOMAIN}"
+SITEMAP_ENV="${SITEMAP_ENV} STACK_DIR=sillage-wholesale WORDPRESS_DB=${WORDPRESS_DB} DB_CONTAINER=wholesale-db"
+# 19:20, twenty minutes after retail's: the two run on one box and each holds a full catalogue
+# query open against its own database.
+SITEMAP_CRON="20 19 * * * ${SITEMAP_ENV} python3 ${APP_DIR}/scripts/write-sitemaps.py >> ${APP_DIR}/sillage-core/logs/sitemap-cron.log 2>&1"
+if ! crontab -l 2>/dev/null | grep -qF "${APP_DIR}/scripts/write-sitemaps.py"; then
+  # `crontab -l` exits non-zero on a box that has never had one, which under `set -e` would kill
+  # the subshell before the echo and leave an empty crontab.
+  { crontab -l 2>/dev/null || true; echo "$SITEMAP_CRON"; } | crontab -
+  echo "==> installed sitemap cron"
+fi
+mkdir -p "$DATA_DIR/sitemaps"
+SITEMAP_HOST_DIR="${SITEMAP_HOST_DIR:-${DATA_DIR}/sitemaps}" WP_BASE_URL="https://${SHOP_DOMAIN}" \
+  STACK_DIR=sillage-wholesale WORDPRESS_DB="$WORDPRESS_DB" DB_CONTAINER=wholesale-db \
+  python3 "$APP_DIR/scripts/write-sitemaps.py" >>"$APP_DIR/sillage-core/logs/sitemap-cron.log" 2>&1 \
+  && echo "==> sitemaps written" || echo "NOTE: first sitemap run failed; catalogue is probably still empty"
 
 curl -sS "http://127.0.0.1:${SILLAGE_PORT:-4000}/health" || true
 echo

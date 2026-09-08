@@ -13,20 +13,45 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 PAGE = 2000
-DEST = Path(os.environ.get("SITEMAP_HOST_DIR", os.path.expanduser("~/ecom_sites/data/sitemaps")))
-BASE = os.environ.get("WP_BASE_URL", "https://prinscosmetic.eu").rstrip("/")
+def _default_dest() -> Path:
+    """Fall back to this stack's own data directory.
 
-SQL = r"""
+    Never ~/ecom_sites/data: that was the shared path from when wholesale lived on the retail
+    box, and on a two-stack box it is a third directory belonging to neither. Writing to the
+    wrong one is silent — Caddy keeps serving an empty directory and every sitemap URL 404s.
+    """
+    own = Path(os.path.expanduser("~/sillage-wholesale/data/sitemaps"))
+    if own.is_dir():
+        return own
+    beside_app = Path(__file__).resolve().parent.parent / "data" / "sitemaps"
+    return beside_app if beside_app.is_dir() else own
+
+
+DEST = Path(os.environ["SITEMAP_HOST_DIR"]) if os.environ.get("SITEMAP_HOST_DIR") else _default_dest()
+
+# No default. The old one was another shop's domain, and getting this wrong is silent in the worst
+# way: robots.txt and every <loc> advertise that shop, so Google is handed a sitemap of URLs which
+# do not belong to the site serving it. The deploy and the cron both pass it explicitly.
+BASE = os.environ.get("WP_BASE_URL", "").rstrip("/")
+
+# This stack. Retail runs `earth` in `ecom-db` from ~/sillage, so none of it is safe to hardcode
+# on a box that hosts both: this file used to be a retail copy and would have written retail's
+# catalogue into wholesale's sitemaps.
+STACK = os.environ.get("STACK_DIR", "sillage-wholesale")
+WPDB = os.environ.get("WORDPRESS_DB", "earth_wpf")
+DB_CONTAINER = os.environ.get("DB_CONTAINER", "wholesale-db")
+
+SQL = rf"""
 SELECT p.post_name, p.post_modified_gmt
-  FROM earth.wp_posts p
+  FROM {WPDB}.wp_posts p
  WHERE p.post_type = 'product'
    AND p.post_status = 'publish'
    AND p.post_name <> ''
    AND p.ID NOT IN (
      SELECT tr.object_id
-       FROM earth.wp_term_relationships tr
-       JOIN earth.wp_term_taxonomy tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
-       JOIN earth.wp_terms t ON t.term_id = tt.term_id
+       FROM {WPDB}.wp_term_relationships tr
+       JOIN {WPDB}.wp_term_taxonomy tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+       JOIN {WPDB}.wp_terms t ON t.term_id = tt.term_id
       WHERE tt.taxonomy = 'product_visibility'
         AND t.slug IN ('exclude-from-catalog', 'exclude-from-search')
    )
@@ -36,7 +61,7 @@ SELECT p.post_name, p.post_modified_gmt
 
 def mysql_tsv(sql: str) -> str:
     pw = subprocess.check_output(
-        ["bash", "-lc", "grep ^MYSQL_ROOT_PWD= ~/sillage/.env | cut -d= -f2-"],
+        ["bash", "-lc", f"grep ^MYSQL_ROOT_PWD= ~/{STACK}/.env | cut -d= -f2-"],
         text=True,
     ).rstrip("\n")
     return subprocess.check_output(
@@ -45,7 +70,7 @@ def mysql_tsv(sql: str) -> str:
             "exec",
             "-e",
             f"MYSQL_PWD={pw}",
-            "ecom-db",
+            DB_CONTAINER,
             "mariadb",
             "-uroot",
             "-N",
@@ -62,6 +87,9 @@ def lastmod(raw: str) -> str:
 
 
 def main() -> int:
+    if not BASE:
+        print("WP_BASE_URL is required (e.g. https://wholesale.codeinmoon.xyz)", file=sys.stderr)
+        return 2
     rows: list[tuple[str, str]] = []
     for line in mysql_tsv(SQL).splitlines():
         parts = line.split("\t")
@@ -110,11 +138,21 @@ def main() -> int:
             + "\n</urlset>\n",
             encoding="utf-8",
         )
-    if DEST.exists():
-        import shutil
+    # Move the files into DEST; never replace DEST itself. Containers bind-mount this exact
+    # directory, so deleting it orphans the mount inside every running container — the shop
+    # keeps working, but the engine's own sitemap write then fails with EBUSY/ENOENT until the
+    # container is restarted.
+    import shutil
 
-        shutil.rmtree(DEST)
-    tmp.rename(DEST)
+    DEST.mkdir(parents=True, exist_ok=True)
+    # Pages before the index that references them.
+    for f in sorted(tmp.iterdir(), key=lambda p: p.name == "wp-sitemap.xml"):
+        f.replace(DEST / f.name)
+    for f in DEST.glob("wp-sitemap-posts-product-*.xml"):
+        n = f.stem.rsplit("-", 1)[-1]
+        if n.isdigit() and int(n) > max(1, len(pages)):
+            f.unlink()
+    shutil.rmtree(tmp, ignore_errors=True)
     # Caddy runs as user `caddy` and cannot traverse a 750 home directory.
     for parent in [DEST, *DEST.parents]:
         try:
