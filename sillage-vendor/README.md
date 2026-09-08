@@ -1,20 +1,9 @@
-# wholesale-perfumes vendor package (extracted)
+# Archive extract — do not deploy
 
-Canonical home for the SoleLuna / wholesale-perfumes.eu connector formerly parked under
-`unseencurtain/Sillage` (`production-environment/sillage-core/...`).
+This folder is a snapshot of the wholesale-perfumes connector from August 2026.
+Live code is in [unseencurtain/Sillage](https://github.com/unseencurtain/Sillage):
 
-| Piece | Path |
-|---|---|
-| Connector | `src/vendors/wholesale-perfumes/` |
-| Order adapter | `src/orders/adapters/wholesale-perfumes.ts` |
-| Unit tests | `tests/wholesalePerfumes.test.ts` |
-| Fixtures | `tests/fixtures/wholesale_perfumes_*.xml` |
-| Seed migration | `migrations/013_wholesale_perfumes_vendor.sql` |
-| Park-on-retail migration | `migrations/016_park_wholesale_perfumes_b2b.sql` |
+`production-environment/sillage-core/src/vendors/wholesale-perfumes/`
 
-These files still compile inside the retail Sillage tree until that connector is deleted there.
-Wire this package into a dedicated B2B Sillage/WordPress stack — do **not** re-enable on the
-cosmetic retail shop (`cosmetic.slilverbelt.xyz`).
-
-API notes: [`../docs/wholesale-perfumes-api.md`](../docs/wholesale-perfumes-api.md).
-Env template: [`../env/.env.example`](../env/.env.example).
+Shop: https://wholesale.mirainikki.xyz (`SILLAGE_PROFILE=wholesale`).
+Do not wire this extract into a new stack.
