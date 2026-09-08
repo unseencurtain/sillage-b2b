@@ -51,6 +51,16 @@ Wiping a VPS and standing the wholesale shop up again? These are settled. The re
   It repairs the options the engine and orders depend on, reports activation without changing
   it, and must show `sillage db  sillage_wpf`. Reading `sillage` there means the bridge is
   pointed at the retail database, which is how a whole wholesale shop once failed silently.
+  It also creates the HPOS order tables (the option that claims they exist creates nothing) and
+  flushes WooCommerce's caches, so a catalogue imported before the bridge was activated becomes
+  visible without a re-import.
+- **An import with the bridge off is invisible, not lost.** Products are written by raw SQL, so
+  they land regardless; the bridge is what tells WooCommerce its caches are stale, and object
+  caching holds post counts with no expiry. Retail once showed an empty shop over 51,201
+  committed products. `scripts/wp-finalize.sh` fixes it in ~15s — never re-import for this.
+- **Both stacks share one box.** Nothing may assume it is the only one: not the Caddyfile, not
+  `~/ecom_sites/data` (this stack owns `~/sillage-wholesale/data`), and not a crontab guard that
+  greps a bare script name.
 
 **Operator dashboard:** [`docs/OPERATOR-DASHBOARD.md`](docs/OPERATOR-DASHBOARD.md).
 **Client how-to:** [`docs/CLIENT-GUIDE.md`](docs/CLIENT-GUIDE.md) — keep it in sync with UI changes.

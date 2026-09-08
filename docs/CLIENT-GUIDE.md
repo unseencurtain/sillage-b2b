@@ -30,6 +30,13 @@ engineer when you are done so they can run the readiness check, and only then pr
 catalogue**. WooCommerce must be active first: activating it is what creates the tables the
 products go into.
 
+**If a rebuild finishes and WooCommerce still shows no products**, the usual cause is that
+**Sillage Bridge was switched off** during it. Nothing is lost and you do **not** need to rebuild
+again — the products are already in the shop. The bridge is what tells WooCommerce to stop
+showing its old, empty count, and it cannot do that while it is off. Activate **Sillage Bridge**,
+then ask your engineer to run the readiness check: it clears the stale count in about fifteen
+seconds and the whole catalogue appears.
+
 ---
 
 ## 2. Settings
