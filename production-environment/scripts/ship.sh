@@ -182,6 +182,11 @@ for host in "${TARGETS[@]}"; do
     docker compose exec -T \$core bun -e \"const r=await fetch('http://127.0.0.1:4000/health'); if(!r.ok) process.exit(1)\" \
       || { echo 'engine did not answer /health — rolling .env back' >&2; mv .env.ship-backup .env; docker compose up -d \$core \$cron >/dev/null 2>&1; exit 1; }
     rm -f .env.ship-backup
+    # Keep the running tag and the one before it — enough to roll back without a pull, while a box
+    # that has been shipped to fifty times does not carry fifty engine images.
+    docker image ls --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' --filter reference='${IMAGE_REPO}' \
+      | sort -rk2 | tail -n +3 | cut -d' ' -f1 \
+      | xargs -r -n1 docker rmi >/dev/null 2>&1 || true
     docker image prune -f >/dev/null 2>&1 || true"
   then
     FAILED+=("$host"); printf '    \033[31m✗ %s\033[0m\n' "$host: deploy failed, .env restored"; continue
