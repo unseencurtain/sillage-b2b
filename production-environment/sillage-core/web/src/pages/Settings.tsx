@@ -473,12 +473,12 @@ export function Settings() {
           </Field>
           <Field
             label="Minutes between syncs"
-            help="Not “30 minutes a day” — this is the incremental store (price/stock) check. Daily full rebuild is a separate control below."
+            help="How often the incremental price/stock check runs, and the shortest gap allowed between two downloads of the catalog feed — one number for both. 30 is the lowest accepted; above that it is your call. Daily full rebuild is a separate control below."
           >
             <input
               type="number"
               step="1"
-              min={1}
+              min={30}
               className={inputClass}
               value={form.live_feed_min_minutes ?? form.fast_sync_minutes ?? ""}
               disabled={busy}

@@ -173,7 +173,7 @@ export async function runScheduledSync(override?: "full" | "fast"): Promise<Sync
   if (settings.syncSource === "live") {
     const cooldown = await getStorefrontLiveCooldown();
     // Store-feed gate (hourly XML). Skip the tick while cooling.
-    if (!cooldown.anyAllow) {
+    if (!cooldown.allow) {
       log.info(
         `tick: skip live ${decision.action} — storefront cooling ${cooldown.retryInMinutes}m (${cooldown.reason})`,
       );

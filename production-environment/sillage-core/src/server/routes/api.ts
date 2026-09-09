@@ -41,6 +41,9 @@ import { requireSession, type AuthEnv } from "../auth.ts";
 
 const log = logger("api");
 
+/** Shortest cadence an operator may set. See docs/SYNC-RULES.md in unseencurtain/Sillage. */
+const MIN_SYNC_MINUTES = 30;
+
 function parseRunStats(raw: unknown): {
   fetchedByVendor?: Record<string, number>;
   skippedVendors?: string[];
@@ -324,6 +327,25 @@ api.post("/sync/run", async (c) => {
   const catalogueReady = await hasSuccessfulCatalogue();
   const pendingRebuild = await isCatalogueRebuildPending();
 
+  // One press is all a rebuild takes. Once it is queued the next vendor call rebuilds instead of
+  // syncing prices, so a second press has nothing to add and must not read as "it did not work".
+  if (mode === "full" && pendingRebuild) {
+    return c.json({
+      ok: true,
+      started: false,
+      alreadyRunning: false,
+      queued: true,
+      cooldown: false,
+      pendingRebuild: true,
+      mode,
+      source,
+      vendors: vendorList,
+      detail: settings.syncEnabled
+        ? `Rebuild is already queued. The next vendor call (every ${settings.fastSyncMinutes} min) rebuilds ${vendorNames} instead of syncing prices.`
+        : "Rebuild is already queued. Turn Sync enabled on and the next vendor call rebuilds instead of syncing prices.",
+    });
+  }
+
   // Scheduled cadence owns price/stock. A one-off Update is only for when Sync enabled is off.
   if (mode === "fast" && settings.syncEnabled) {
     return c.json({
@@ -343,7 +365,7 @@ api.post("/sync/run", async (c) => {
 
   // Rebuild while the schedule is on (and a catalogue already exists) waits for the next call.
   if (mode === "full" && settings.syncEnabled && catalogueReady) {
-    if (!pendingRebuild) await queueCatalogueRebuild();
+    await queueCatalogueRebuild();
     return c.json({
       ok: true,
       started: false,
@@ -354,17 +376,36 @@ api.post("/sync/run", async (c) => {
       mode,
       source,
       vendors: vendorList,
-      detail: pendingRebuild
-        ? `Catalogue rebuild is already queued. The next scheduled sync (every ${settings.fastSyncMinutes} min) will rebuild instead of prices-only.`
-        : `Catalogue rebuild queued. The next scheduled sync (every ${settings.fastSyncMinutes} min) will rebuild ${vendorNames} instead of a prices-only call.`,
+      detail: `Rebuild queued. The next vendor call (every ${settings.fastSyncMinutes} min) rebuilds ${vendorNames} instead of syncing prices.`,
     });
   }
 
-  // Live catalogue syncs must wait out the vendor cooldown — never start a run that would
-  // silently reuse a stale on-disk feed.
+  // The call interval holds even for a button press: a feed downloaded minutes ago is the feed a
+  // second download would return, so the press costs a vendor call and buys nothing.
   if (source === "live") {
     const cooldown = await getStorefrontLiveCooldown();
-    if (!cooldown.anyAllow) {
+    if (!cooldown.allow) {
+      // A rebuild press is remembered rather than refused: the next call rebuilds instead of
+      // syncing prices. That is the whole contract — press once, it happens on the next call.
+      if (mode === "full") {
+        await queueCatalogueRebuild();
+        return c.json({
+          ok: true,
+          started: false,
+          alreadyRunning: false,
+          queued: true,
+          cooldown: true,
+          pendingRebuild: true,
+          retryInMinutes: cooldown.retryInMinutes,
+          nextAllowedAt: cooldown.nextAllowedAt,
+          mode,
+          source,
+          vendors: vendorList,
+          detail: settings.syncEnabled
+            ? `Rebuild queued. The next vendor call, in about ${cooldown.retryInMinutes} min, rebuilds ${vendorNames} instead of syncing prices.`
+            : `Rebuild queued. Turn Sync enabled on and the next vendor call — the feed is ${cooldown.retryInMinutes} min from its interval — rebuilds instead of syncing prices.`,
+        });
+      }
       return c.json({
         ok: true,
         started: false,
@@ -376,7 +417,7 @@ api.post("/sync/run", async (c) => {
         mode,
         source,
         vendors: vendorList,
-        detail: `Next sync available in ${cooldown.retryInMinutes} min — ${cooldown.reason}`,
+        detail: `Next vendor call in ${cooldown.retryInMinutes} min — ${cooldown.reason}`,
       });
     }
   }
@@ -460,7 +501,6 @@ api.get("/sync/live-status", async (c) => {
     /** @deprecated use cooldownMinutes — same value as live_feed_min_minutes */
     liveFeedMinMinutes: cooldown.cooldownMinutes,
     allow: cooldown.allow,
-    anyAllow: cooldown.anyAllow,
     retryInMinutes: cooldown.retryInMinutes,
     nextAllowedAt: cooldown.nextAllowedAt,
     reason: cooldown.reason,
@@ -1143,7 +1183,10 @@ api.put("/settings", async (c) => {
       const h = Math.min(23, Math.max(0, Math.trunc(Number(value)) || 0));
       persist = String(h);
     } else if (key === "live_feed_min_minutes" || key === "fast_sync_minutes") {
-      const m = Math.max(1, Math.trunc(Number(value)) || 60);
+      // 30 minutes is the floor: anything above is the operator's call, nothing below is. There is
+      // one wholesale-perfumes account, and a cadence under half an hour spends its rate limit on a
+      // feed that has barely changed.
+      const m = Math.max(MIN_SYNC_MINUTES, Math.trunc(Number(value)) || 60);
       persist = String(m);
     }
     const changed = prior.get(key) !== persist;

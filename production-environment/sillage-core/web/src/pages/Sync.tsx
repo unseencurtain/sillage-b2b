@@ -76,7 +76,7 @@ export function Sync() {
   const syncRunning = isRunActive(newest);
   const secretsMissing = (secrets.data?.secrets ?? []).filter((s) => !s.set);
   const cooldownMin = live.data?.retryInMinutes ?? 0;
-  const onCooldown = Boolean(live.data && !(live.data.anyAllow ?? live.data.allow));
+  const onCooldown = Boolean(live.data && !live.data.allow);
   const scheduleOn = live.data?.syncEnabled === true;
   const pendingRebuild = live.data?.pendingRebuild === true;
   const catalogueReady = live.data?.catalogueReady !== false;
@@ -133,7 +133,9 @@ export function Sync() {
   const busy = starting || syncRunning;
   const secretsBlock = secretsMissing.length > 0;
   const fastDisabled = busy || secretsBlock || scheduleOn || onCooldown;
-  const rebuildDisabled = busy || secretsBlock || (pendingRebuild && scheduleOn && catalogueReady);
+  // A queued rebuild is a done decision: the next vendor call rebuilds. Pressing again cannot make
+  // it happen sooner, so the button goes dead until that call has run.
+  const rebuildDisabled = busy || secretsBlock || pendingRebuild;
 
   useEffect(() => {
     if (watchingRunId.current === -1 && newest && isRunActive(newest)) {

@@ -154,7 +154,10 @@ export async function loadSettings(): Promise<GlobalSettings> {
     writeBatchSize: num("write_batch_size", 500),
     maxStatementBytes: num("max_statement_bytes", 4_194_304),
     syncEnabled: flag("sync_enabled", true),
-    fastSyncMinutes: num("fast_sync_minutes", 30),
+    // One field in Settings writes both this and live_feed_min_minutes, so they must default to
+    // the same number. When they disagreed the scheduler ticked twice as often as the dashboard
+    // said and logged every other tick as blocked by the vendor cooldown.
+    fastSyncMinutes: num("fast_sync_minutes", 60),
     fullSyncEnabled: flag("full_sync_enabled", true),
     fullSyncHour: num("full_sync_hour", 3),
     scheduleTimezone: (() => {

@@ -77,7 +77,6 @@ export const api = {
       cooldownMinutes: number;
       liveFeedMinMinutes: number;
       allow: boolean;
-      anyAllow?: boolean;
       retryInMinutes: number;
       nextAllowedAt: string | null;
       reason: string;

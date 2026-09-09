@@ -123,7 +123,6 @@ async function liveFetchesUsedToday(vendor: CacheVendor): Promise<number> {
 
 export type StorefrontLiveCooldown = {
   allow: boolean;
-  anyAllow: boolean;
   retryInMinutes: number;
   reason: string;
   cooldownMinutes: number;
@@ -148,7 +147,6 @@ export async function getStorefrontLiveCooldown(): Promise<StorefrontLiveCooldow
       : new Date(Date.now() + storeGate.retryInMinutes * 60_000).toISOString();
   return {
     allow: storeGate.allow,
-    anyAllow: storeGate.allow,
     retryInMinutes: storeGate.allow ? 0 : storeGate.retryInMinutes,
     reason: storeGate.reason,
     cooldownMinutes,

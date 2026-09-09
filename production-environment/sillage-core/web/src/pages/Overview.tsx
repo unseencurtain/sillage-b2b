@@ -33,7 +33,7 @@ export function Overview() {
 
   const syncRunning = isRunActive(data?.lastSync);
   const scheduleOn = Boolean(data?.settings.syncEnabled);
-  const onCooldown = Boolean(live.data && !(live.data.anyAllow ?? live.data.allow));
+  const onCooldown = Boolean(live.data && !live.data.allow);
   const cooldownMin = live.data?.retryInMinutes ?? 0;
   const intervalMin = live.data?.cooldownMinutes ?? 30;
   const run = useMutation({
