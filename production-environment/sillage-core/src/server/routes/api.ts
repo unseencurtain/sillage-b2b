@@ -253,10 +253,6 @@ api.get("/overview", async (c) => {
       stockThreshold: settings.stockThreshold,
       scheduleTimezone: settings.scheduleTimezone,
     },
-    // Whether this is the development box. It is restored from a production pack, so the two
-    // wholesale shops are identical down to the catalogue; the dashboard has to say which one you
-    // are looking at before you change anything.
-    devBox: env.devBox,
     secrets: (() => {
       loadSecretsOverlay();
       const { secrets } = listSecretStatus();
